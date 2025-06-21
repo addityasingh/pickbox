@@ -21,7 +21,6 @@ type Node struct {
 	Chunks     map[ChunkID]*Chunk
 	ChunkRoles map[ChunkID]Role
 	mu         sync.RWMutex
-	raft       *RaftManager
 }
 
 // ChunkID uniquely identifies a chunk of data
@@ -101,7 +100,7 @@ func (n *Node) RetrieveChunk(chunkID ChunkID) *Chunk {
 }
 
 // ReplicateChunk replicates a chunk to another node using Raft
-func (n *Node) ReplicateChunk(chunkID ChunkID, targetNodeID uint32) {
+func (n *Node) ReplicateChunk(chunkID ChunkID, targetNodeID uint32, raftManager *RaftManager) {
 	n.mu.RLock()
 	role, exists := n.ChunkRoles[chunkID]
 	chunk := n.Chunks[chunkID]
@@ -112,7 +111,7 @@ func (n *Node) ReplicateChunk(chunkID ChunkID, targetNodeID uint32) {
 	}
 
 	// Use Raft to replicate the chunk
-	if err := n.raft.ReplicateChunk(chunkID, chunk.Data); err != nil {
+	if err := raftManager.ReplicateChunk(chunkID, chunk.Data); err != nil {
 		// Log error but don't fail - Raft will handle retries
 		logrus.WithError(err).Error("Failed to replicate chunk")
 	}

@@ -3,6 +3,7 @@ module github.com/aditya/pickbox
 go 1.21
 
 require (
+	github.com/fsnotify/fsnotify v1.7.0
 	github.com/hashicorp/raft v1.6.1
 	github.com/hashicorp/raft-boltdb v0.0.0-20230125174641-2a8082862702
 	github.com/sirupsen/logrus v1.9.3

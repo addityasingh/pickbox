@@ -97,77 +97,8 @@ func main() {
 			logger.WithError(err).Fatal("Failed to create ready file")
 		}
 	} else {
-		// For other nodes, wait for node1 to be ready
-		readyFile := filepath.Join("data", "node1_ready")
-		for i := 0; i < 30; i++ { // Wait up to 30 seconds
-			if _, err := os.Stat(readyFile); err == nil {
-				break
-			}
-			if i == 29 {
-				logger.Fatal("Timed out waiting for node1 to be ready")
-			}
-			logger.Info("Waiting for node1 to be ready...")
-			time.Sleep(time.Second)
-		}
-
-		// Create a new Raft configuration for joining
-		config := raft.DefaultConfig()
-		config.LocalID = raft.ServerID(*nodeID)
-
-		// Try to join the cluster through node1
-		maxRetries := 5
-		for i := 0; i < maxRetries; i++ {
-			// Create a new transport for joining
-			transport, err := raft.NewTCPTransport(
-				fmt.Sprintf("127.0.0.1:%d", *port),
-				nil,
-				3,
-				10*time.Second,
-				os.Stderr,
-			)
-			if err != nil {
-				logger.WithError(err).Fatal("Failed to create transport")
-			}
-
-			// Get Raft components from manager
-			fsm, store, snapshots := manager.GetRaftComponents()
-
-			// Create a new Raft instance for joining
-			r, err := raft.NewRaft(
-				config,
-				fsm,
-				store,
-				store,
-				snapshots,
-				transport,
-			)
-			if err != nil {
-				logger.WithError(err).Fatal("Failed to create raft instance")
-			}
-
-			// Try to join through node1
-			future := r.AddVoter(
-				raft.ServerID(*nodeID),
-				raft.ServerAddress(fmt.Sprintf("127.0.0.1:%d", *port)),
-				0,
-				0,
-			)
-			err = future.Error()
-			if err == nil {
-				logger.Info("Successfully joined cluster")
-				break
-			}
-
-			if i < maxRetries-1 {
-				logger.WithError(err).Warnf("Failed to join cluster, retrying in 2 seconds... (attempt %d/%d)", i+1, maxRetries)
-				time.Sleep(2 * time.Second)
-			} else {
-				logger.WithError(err).Fatal("Failed to join cluster after multiple attempts")
-			}
-
-			// Shutdown the temporary Raft instance
-			r.Shutdown().Error()
-		}
+		// For follower nodes, just wait and let add_nodes.go handle joining
+		logger.Info("Follower node started, waiting to be added to cluster...")
 	}
 
 	// Create a test file in the data directory

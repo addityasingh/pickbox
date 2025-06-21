@@ -1,0 +1,28 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+- You are an engineer trying to build a distributed file storage similar to Dropbox, Google Drive
+- File operations with replication and consistency guarantees.
+- File operations supported (OPEN, READ, WRITE, CLOSE)
+- Distributed storage with multiple nodes
+- You can use RAFT for distributed consensus
+- Ensure the code has structured logging for debugging purposes
+- Generate test code to see this work locally for 3 node cluster
+- Always try to create clean, easier to follow file structure and code
+
+## Implementation Details
+
+### Storage System
+
+The storage system is implemented with the following components:
+
+1. **Storage Manager**: Manages multiple storage nodes and coordinates operations
+2. **Storage Node**: Handles chunk storage and replication
+
+### Concurrency
+- Each client connection is handled in a separate goroutine
+- Storage operations are protected by mutexes for thread safety
+- Vector clock operations are atomic
+
