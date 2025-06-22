@@ -11,6 +11,7 @@ alwaysApply: true
 - Ensure the code has structured logging for debugging purposes
 - Generate test code to see this work locally for 3 node cluster
 - Always try to create clean, easier to follow file structure and code
+- All DEBUG markdown files generated must be in `.cursor/debug` folder
 
 ## Implementation Details
 

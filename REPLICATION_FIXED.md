@@ -23,7 +23,7 @@ Created `scripts/cleanup_replication.sh` that:
 - ✅ Verifies all ports are free before proceeding
 
 ### 2. Improved Test Scripts
-Updated `scripts/test_live_replication.sh` with:
+Updated `scripts/tests/test_live_replication.sh` with:
 - ✅ Thorough cleanup before starting
 - ✅ Longer initialization timeouts (12 seconds)
 - ✅ Extended replication wait times (4 seconds per test)
@@ -102,7 +102,7 @@ cat data/node*/hosts_backup.txt # Should be identical
 
 ### Run Automated Tests:
 ```bash
-./scripts/test_live_replication.sh
+./scripts/tests/test_live_replication.sh
 ```
 
 ### Clean Up:

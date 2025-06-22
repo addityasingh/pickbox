@@ -128,7 +128,7 @@ ls -la data/node*/
 
 ### Run Comprehensive Tests:
 ```bash
-./scripts/test_multi_replication.sh
+./scripts/tests/test_multi_replication.sh
 ```
 
 ## 📈 Comparison: Before vs After

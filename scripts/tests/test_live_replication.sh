@@ -5,12 +5,12 @@ echo "============================"
 
 # Clean up any existing processes first
 echo "Cleaning up any existing processes..."
-chmod +x scripts/cleanup_replication.sh
-./scripts/cleanup_replication.sh
+chmod +x ../cleanup_replication.sh
+../cleanup_replication.sh
 
 # Start the live replication in background
 echo "Starting live replication cluster..."
-./scripts/run_live_replication.sh > /tmp/live_replication.log 2>&1 &
+../run_live_replication.sh > /tmp/live_replication.log 2>&1 &
 DEMO_PID=$!
 
 # Wait for cluster to start

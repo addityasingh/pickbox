@@ -25,7 +25,7 @@ Created a **Live File Watching System** with:
 ### Components
 - **`cmd/live_replication/main.go`**: Complete live replication system
 - **`scripts/run_live_replication.sh`**: Interactive demo script
-- **`scripts/test_live_replication.sh`**: Automated testing
+- **`scripts/tests/test_live_replication.sh`**: Automated testing
 
 ### Key Features
 - ✅ **File Change Detection**: Automatically detects when files are created/modified
@@ -95,7 +95,7 @@ cat data/node*/hosts_backup.txt
 
 ### 4. Run Automated Tests
 ```bash
-./scripts/test_live_replication.sh
+./scripts/tests/test_live_replication.sh
 ```
 
 ## 📊 Performance

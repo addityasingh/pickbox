@@ -61,8 +61,8 @@
 
 Run the comprehensive test suite:
 ```bash
-chmod +x scripts/test_replication.sh
-./scripts/test_replication.sh
+chmod +x scripts/tests/test_replication.sh
+./scripts/tests/test_replication.sh
 ```
 
 This will:
@@ -86,7 +86,8 @@ cmd/
 scripts/
 ├── run_simple_demo.sh     # Run simple demo
 ├── run_raft_demo.sh       # Run Raft demo
-└── test_replication.sh    # Run all tests
+└── tests/
+    └── test_replication.sh    # Run all tests
 ```
 
 ## What Works Now

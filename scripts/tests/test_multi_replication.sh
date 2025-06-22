@@ -5,13 +5,13 @@ echo "========================================"
 
 # Clean up any existing processes first
 echo "Cleaning up any existing processes..."
-chmod +x scripts/cleanup_replication.sh
-./scripts/cleanup_replication.sh
+chmod +x ../cleanup_replication.sh
+../cleanup_replication.sh
 
 # Start the multi-directional replication in background
 echo "Starting multi-directional replication cluster..."
-chmod +x scripts/run_multi_replication.sh
-./scripts/run_multi_replication.sh > /tmp/multi_replication.log 2>&1 &
+chmod +x ../run_multi_replication.sh
+../run_multi_replication.sh > /tmp/multi_replication.log 2>&1 &
 DEMO_PID=$!
 
 # Wait for cluster to start
@@ -186,7 +186,7 @@ else
 fi
 
 # Start the improved system
-./scripts/run_multi_replication.sh
+../run_multi_replication.sh
 
 # Edit files in ANY node directory
 echo "Hello from node1!" > data/node1/test.txt  # Replicates everywhere
