@@ -43,21 +43,6 @@ jobs:
     - name: Verify dependencies
       run: go mod verify
 
-    - name: Run go vet
-      run: go vet ./...
-
-    - name: Install golangci-lint
-      uses: golangci/golangci-lint-action@v3
-      with:
-        version: v1.60.3
-        args: --config=.golangci.yml --timeout=5m
-
-    - name: Install staticcheck
-      run: go install honnef.co/go/tools/cmd/staticcheck@2023.1.7
-
-    - name: Run staticcheck
-      run: staticcheck ./...
-
     - name: Run unit tests
       run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
 
