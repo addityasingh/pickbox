@@ -1,0 +1,156 @@
+run:
+  timeout: 5m
+  tests: true
+  skip-dirs:
+    - vendor
+    - .git
+  skip-files:
+    - ".*_test.go"
+
+linters-settings:
+  govet:
+    check-shadowing: true
+    enable-all: true
+  
+  golint:
+    min-confidence: 0.8
+    
+  gocyclo:
+    min-complexity: 15
+    
+  maligned:
+    suggest-new: true
+    
+  dupl:
+    threshold: 100
+    
+  goconst:
+    min-len: 2
+    min-occurrences: 2
+    
+  goimports:
+    local-prefixes: github.com/aditya/pickbox
+    
+  unused:
+    check-exported: true
+    
+  unparam:
+    check-exported: true
+    
+  nakedret:
+    max-func-lines: 30
+    
+  prealloc:
+    simple: true
+    range-loops: true
+    for-loops: false
+    
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - experimental
+      - opinionated
+      - performance
+      - style
+    disabled-checks:
+      - dupImport # https://github.com/go-critic/go-critic/issues/845
+      - ifElseChain
+      - octalLiteral
+      - whyNoLint
+      - wrapperFunc
+      
+  gofmt:
+    simplify: true
+    
+  gofumpt:
+    extra-rules: true
+    
+  revive:
+    rules:
+      - name: unused-parameter
+      - name: unused-receiver
+      - name: unreachable-code
+      - name: struct-tag
+      - name: range-val-in-closure
+      - name: range-val-address
+      - name: flag-parameter
+      - name: empty-block
+      - name: superfluous-else
+      - name: confusing-naming
+      - name: get-return
+      - name: modifies-parameter
+      - name: deep-exit
+      - name: flag-parameter
+      - name: unused-parameter
+      
+  staticcheck:
+    go: "1.21"
+    checks: ["all"]
+
+linters:
+  disable-all: true
+  enable:
+    # Bug prevention
+    - govet          # Standard Go vet checks
+    - errcheck       # Check for unchecked errors
+    - staticcheck    # Go static analysis
+    - unused         # Check for unused constants, variables, functions and types
+    - ineffassign    # Detect ineffectual assignments
+    - typecheck      # Type checking
+    
+    # Code quality
+    - gofmt          # Check whether code was gofmt-ed
+    - gofumpt        # Stricter gofmt
+    - goimports      # Fix imports
+    - golint         # Golint differs from gofmt
+    - revive         # Fast, configurable, extensible, flexible linter
+    - gosimple       # Simplify code
+    - goconst        # Find repeated strings that could be constants
+    - gocritic       # Go source code linter providing checks not covered by other linters
+    - gocyclo        # Computes cyclomatic complexities
+    - dupl           # Code clone detection
+    - unparam        # Report unused function parameters
+    - unconvert      # Remove unnecessary type conversions
+    - prealloc       # Find slice declarations that could potentially be preallocated
+    - nakedret       # Find naked returns in functions greater than a specified function length
+    - misspell       # Find commonly misspelled English words in comments
+    - maligned       # Detect Go structs that would take less memory if their fields were sorted
+    
+    # Security
+    - gosec          # Inspect source code for security problems
+    
+    # Performance  
+    - bodyclose      # Check whether HTTP response body is closed successfully
+    
+    # Style
+    - godot          # Check if comments end in a period
+    - whitespace     # Tool for detection of leading and trailing whitespace
+
+issues:
+  exclude-rules:
+    # Exclude some linters from running on tests files.
+    - path: _test\.go
+      linters:
+        - gocyclo
+        - errcheck
+        - dupl
+        - gosec
+        - goconst
+        - unused
+        
+    # Exclude known linters from partially hard-to-fix issues
+    - path: cmd/
+      linters:
+        - unused
+        - golint
+        
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+severity:
+  default-severity: error
+  rules:
+    - linters:
+      - revive
+      severity: warning 

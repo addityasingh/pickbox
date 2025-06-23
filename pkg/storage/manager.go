@@ -11,7 +11,6 @@ import (
 // Manager handles the storage operations and replication
 type Manager struct {
 	nodes []*Node
-	mu    sync.RWMutex
 	raft  *RaftManager
 }
 

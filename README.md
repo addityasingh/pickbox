@@ -198,7 +198,12 @@ graph TB
    cd pickbox
    ```
 
-2. **Start the multi-directional cluster**:
+2. **Setup development environment** (optional but recommended):
+   ```bash
+   make setup  # Install tools and pre-commit hooks
+   ```
+
+3. **Start the multi-directional cluster**:
    ```bash
    chmod +x scripts/run_multi_replication.sh
    ./scripts/run_multi_replication.sh
@@ -217,7 +222,7 @@ graph TB
 
 4. **Run comprehensive tests**:
    ```bash
-   ./scripts/tests/test_multi_replication.sh
+   make test-coverage  # or ./scripts/tests/test_multi_replication.sh
    ```
 
 The cluster runs on:
@@ -344,6 +349,49 @@ go test -v ./pkg/storage ./cmd/multi_replication
 
 **📖 For comprehensive testing documentation, see [`test/README.md`](test/README.md)**
 
+## Code Quality & Linting
+
+Pickbox enforces strict code quality standards through comprehensive linting and automated checks:
+
+### **Linting Tools**
+- **golangci-lint**: Comprehensive Go linter with 25+ enabled checks
+- **staticcheck**: Advanced static analysis for Go
+- **gosec**: Security vulnerability scanner
+- **pre-commit**: Automated quality checks on every commit
+
+### **Quality Checks**
+- ✅ **Unused Code Detection**: Catches unused variables, functions, and struct fields
+- ✅ **Security Scanning**: Detects potential security vulnerabilities
+- ✅ **Code Formatting**: Enforces consistent formatting with `gofmt` and `goimports`
+- ✅ **Performance Analysis**: Identifies inefficient code patterns
+- ✅ **Style Consistency**: Maintains consistent coding style across the project
+
+### **Development Workflow**
+
+```bash
+# Setup development environment
+make setup                    # Install tools + pre-commit hooks
+
+# Code quality commands
+make lint                     # Run all linters
+make lint-fix                 # Auto-fix issues where possible
+make check-unused             # Check for unused code specifically
+make security                 # Run security analysis (go vet + gosec if available)
+make security-install         # Install gosec and run full security analysis
+make verify-all               # Run all checks (lint + test + security)
+
+# Pre-commit integration
+git commit                    # Automatically runs quality checks
+make pre-commit               # Run pre-commit hooks manually
+```
+
+### **CI Integration**
+All quality checks run automatically in GitHub Actions:
+- **Pre-commit hooks** prevent bad code from being committed
+- **CI pipeline** runs comprehensive linting on every push/PR
+- **Security scanning** generates SARIF reports for GitHub Security tab
+- **Coverage enforcement** maintains quality thresholds
+
 ## CI/CD Pipeline
 
 Pickbox uses GitHub Actions for continuous integration and deployment:
@@ -414,6 +462,7 @@ Each document includes detailed Mermaid diagrams showing:
 - [x] Refactor test bash scripts from scripts folder
 - [x] Generate architecture diagram for each of the 3 versions (replication, live_replication, multi_replication)
 - [x] Set up comprehensive CI/CD pipeline with GitHub Actions
+- [x] Add comprehensive linting with pre-commit hooks and unused field detection
 - [ ] Stabilize integration tests for reliable CI/CD execution (currently all disabled due to timing/resource issues)
 - [ ] Deploy and create client code for this setup to test end-to-end
 
