@@ -87,6 +87,53 @@ The system uses structured logging via `logrus` for better observability. Logs i
 - Storage operations
 - Error conditions
 
+## Testing
+
+The project includes comprehensive test scripts in the `scripts/tests/` directory:
+
+- `scripts/tests/test_replication.sh` - Run all replication tests
+- `scripts/tests/test_live_replication.sh` - Test live file watching and replication
+- `scripts/tests/test_multi_replication.sh` - Test multi-directional replication
+
+See `scripts/tests/README.md` for detailed testing information.
+
+## Scripts Organization
+
+```
+scripts/
+├── tests/                    # Test scripts
+│   ├── README.md
+│   ├── test_replication.sh
+│   ├── test_live_replication.sh
+│   └── test_multi_replication.sh
+├── run_replication.sh        # Demo scripts
+├── run_live_replication.sh
+├── run_multi_replication.sh
+├── cleanup_replication.sh    # Utility scripts
+└── add_nodes.go
+```
+
+## Architecture Documentation
+
+Comprehensive architecture diagrams and documentation are available in `.cursor/debug/`:
+
+- **Step 1**: `step1_basic_raft_replication.md` - Basic Raft consensus replication
+- **Step 2**: `step2_live_replication.md` - Live file watching and replication  
+- **Step 3**: `step3_multi_directional_replication.md` - Multi-directional replication
+- **Overview**: `architecture_evolution_overview.md` - Complete evolution analysis
+
+Each document includes detailed Mermaid diagrams showing:
+- Node architecture and communication patterns
+- Data flow and command processing
+- Component relationships and dependencies
+- Evolution from basic consensus to advanced multi-directional replication
+
+## Improvements 
+- [] Refactor code to be more readable
+- [] Add tests for golang files
+- [x] Refactor test bash scripts from scripts folder
+- [x] Generate architecture diagram for each of the 3 versions (replication, live_replication, multi_replication)
+
 ## License
 
 MIT License
