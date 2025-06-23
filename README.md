@@ -1,5 +1,11 @@
 # Pickbox - Distributed Storage System
 
+[![Pickbox CI/CD](https://github.com/aditya/pickbox/actions/workflows/go.yml/badge.svg)](https://github.com/aditya/pickbox/actions/workflows/go.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/aditya/pickbox)](https://goreportcard.com/report/github.com/aditya/pickbox)
+[![codecov](https://codecov.io/gh/aditya/pickbox/branch/main/graph/badge.svg)](https://codecov.io/gh/aditya/pickbox)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/aditya/pickbox)](https://golang.org/dl/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Pickbox is a distributed storage system implemented in Go that provides file operations with replication and consistency guarantees.
 
 ## Features
@@ -338,6 +344,39 @@ go test -v ./pkg/storage ./cmd/multi_replication
 
 **📖 For comprehensive testing documentation, see [`test/README.md`](test/README.md)**
 
+## CI/CD Pipeline
+
+Pickbox uses GitHub Actions for continuous integration and deployment:
+
+### Pipeline Features
+- **Multi-Go Version Testing**: Tests against Go 1.21 and 1.22
+- **Comprehensive Test Suite**: Unit tests, integration tests, and benchmarks
+- **Code Quality Checks**: `go vet`, `staticcheck`, and security scanning
+- **Cross-Platform Builds**: Linux, macOS, and Windows binaries
+- **Coverage Reporting**: Automated coverage reports via Codecov
+- **Security Scanning**: Gosec security analysis
+- **Automated Releases**: Binary releases on main branch pushes
+
+### Pipeline Jobs
+
+1. **Test Suite** (`test`) - Runs unit tests with coverage
+2. **Integration Tests** (`integration-test`) - End-to-end testing
+3. **Build** (`build`) - Cross-platform binary compilation
+4. **Security** (`security`) - Security vulnerability scanning
+5. **Release** (`release`) - Automated GitHub releases
+6. **Notify** (`notify`) - Pipeline status notifications
+
+### Artifacts Published
+- **Coverage Reports**: HTML and raw coverage data
+- **Binaries**: Cross-platform executables for all three modes
+- **Security Reports**: SARIF format security scan results
+- **Integration Logs**: Debug logs from failed integration tests
+
+### Monitoring
+- **Build Status**: [![Pickbox CI/CD](https://github.com/aditya/pickbox/actions/workflows/go.yml/badge.svg)](https://github.com/aditya/pickbox/actions/workflows/go.yml)
+- **Code Coverage**: [![codecov](https://codecov.io/gh/aditya/pickbox/branch/main/graph/badge.svg)](https://codecov.io/gh/aditya/pickbox)
+- **Code Quality**: [![Go Report Card](https://goreportcard.com/badge/github.com/aditya/pickbox)](https://goreportcard.com/report/github.com/aditya/pickbox)
+
 ## Scripts Organization
 
 ```
@@ -370,10 +409,11 @@ Each document includes detailed Mermaid diagrams showing:
 - Evolution from basic consensus to advanced multi-directional replication
 
 ## Improvements 
-- [] Refactor code to be more readable
+- [ ] Refactor code to be more readable
 - [x] Add tests for golang files
 - [x] Refactor test bash scripts from scripts folder
 - [x] Generate architecture diagram for each of the 3 versions (replication, live_replication, multi_replication)
+- [x] Set up comprehensive CI/CD pipeline with GitHub Actions
 - [ ] Deploy and create client code for this setup to test end-to-end
 
 ## License
