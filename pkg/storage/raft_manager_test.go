@@ -14,7 +14,11 @@ import (
 )
 
 func TestNewRaftManager(t *testing.T) {
-	t.Skip("Skipping the raft manager creation test for now")
+	// Skip this test when running with race detector due to checkptr issues in BoltDB
+	// This is a known issue with github.com/boltdb/bolt@v1.3.1 and checkptr validation
+	if testing.Short() {
+		t.Skip("Skipping in short mode due to BoltDB checkptr issues")
+	}
 
 	tests := []struct {
 		name     string
