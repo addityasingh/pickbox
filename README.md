@@ -310,13 +310,33 @@ The system uses structured logging via `logrus` for better observability. Logs i
 
 ## Testing
 
-The project includes comprehensive test scripts in the `scripts/tests/` directory:
+Pickbox includes a comprehensive test suite covering unit tests, integration tests, and benchmarks. The system provides:
 
-- `scripts/tests/test_replication.sh` - Run all replication tests
-- `scripts/tests/test_live_replication.sh` - Test live file watching and replication
-- `scripts/tests/test_multi_replication.sh` - Test multi-directional replication
+- **Unit Tests**: Storage package, Raft manager, and multi-replication components
+- **Integration Tests**: End-to-end 3-node cluster testing  
+- **Benchmark Tests**: Performance testing for critical operations
+- **Test Scripts**: Automated testing for all replication modes
 
-See `scripts/tests/README.md` for detailed testing information.
+### Quick Test Commands
+
+```bash
+# Run all tests with coverage
+./scripts/run_tests.sh
+
+# Run integration tests
+cd test && go test -v .
+
+# Run unit tests
+go test -v ./pkg/storage ./cmd/multi_replication
+```
+
+### Test Scripts
+
+- `scripts/tests/test_replication.sh` - Basic Raft replication tests
+- `scripts/tests/test_live_replication.sh` - Live file watching tests  
+- `scripts/tests/test_multi_replication.sh` - Multi-directional replication tests
+
+**📖 For comprehensive testing documentation, see [`test/README.md`](test/README.md)**
 
 ## Scripts Organization
 
@@ -351,9 +371,10 @@ Each document includes detailed Mermaid diagrams showing:
 
 ## Improvements 
 - [] Refactor code to be more readable
-- [] Add tests for golang files
+- [x] Add tests for golang files
 - [x] Refactor test bash scripts from scripts folder
 - [x] Generate architecture diagram for each of the 3 versions (replication, live_replication, multi_replication)
+- [ ] Deploy and create client code for this setup to test end-to-end
 
 ## License
 
