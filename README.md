@@ -318,10 +318,10 @@ The system uses structured logging via `logrus` for better observability. Logs i
 
 Pickbox includes a comprehensive test suite covering unit tests, integration tests, and benchmarks. The system provides:
 
-- **Unit Tests**: Storage package, Raft manager, and multi-replication components
-- **Integration Tests**: End-to-end 3-node cluster testing  
-- **Benchmark Tests**: Performance testing for critical operations
-- **Test Scripts**: Automated testing for all replication modes
+- **Unit Tests**: Storage package, Raft manager, and multi-replication components *(active)*
+- **Integration Tests**: End-to-end 3-node cluster testing *(currently disabled for CI/CD stability)*
+- **Benchmark Tests**: Performance testing for critical operations *(active)*
+- **Test Scripts**: Automated testing for all replication modes *(manual execution only)*
 
 ### Quick Test Commands
 
@@ -360,7 +360,7 @@ Pickbox uses GitHub Actions for continuous integration and deployment:
 ### Pipeline Jobs
 
 1. **Test Suite** (`test`) - Runs unit tests with coverage
-2. **Integration Tests** (`integration-test`) - End-to-end testing
+2. **Integration Tests** (`integration-test`) - End-to-end testing *(currently disabled - see Improvements section)*
 3. **Build** (`build`) - Cross-platform binary compilation
 4. **Security** (`security`) - Security vulnerability scanning
 5. **Release** (`release`) - Automated GitHub releases
@@ -414,6 +414,7 @@ Each document includes detailed Mermaid diagrams showing:
 - [x] Refactor test bash scripts from scripts folder
 - [x] Generate architecture diagram for each of the 3 versions (replication, live_replication, multi_replication)
 - [x] Set up comprehensive CI/CD pipeline with GitHub Actions
+- [ ] Stabilize integration tests for reliable CI/CD execution (currently all disabled due to timing/resource issues)
 - [ ] Deploy and create client code for this setup to test end-to-end
 
 ## License
