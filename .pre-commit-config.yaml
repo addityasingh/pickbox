@@ -1,0 +1,89 @@
+repos:
+  # Go linting and formatting
+  - repo: https://github.com/dnephin/pre-commit-golang
+    rev: v0.5.1
+    hooks:
+      - id: go-fmt
+        name: Go Format
+        description: Run gofmt on Go source files
+      - id: go-imports
+        name: Go Imports  
+        description: Run goimports on Go source files
+      - id: go-vet-mod
+        name: Go Vet
+        description: Run go vet on Go source files
+      - id: go-mod-tidy
+        name: Go Mod Tidy
+        description: Run go mod tidy to ensure clean go.mod and go.sum
+      - id: go-unit-tests
+        name: Go Unit Tests
+        description: Run go test on all packages
+        args: [-race, -short]
+      - id: golangci-lint
+        name: golangci-lint
+        description: Run golangci-lint with comprehensive checks
+        args: [--config=.golangci.yml]
+
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        name: Trim Trailing Whitespace
+      - id: end-of-file-fixer
+        name: Fix End of Files
+      - id: check-yaml
+        name: Check YAML
+      - id: check-json
+        name: Check JSON
+      - id: check-toml
+        name: Check TOML
+      - id: check-added-large-files
+        name: Check for Large Files
+        args: ['--maxkb=1000']
+      - id: check-case-conflict
+        name: Check Case Conflict
+      - id: check-merge-conflict
+        name: Check Merge Conflict
+      - id: debug-statements
+        name: Debug Statements (Python)
+      - id: detect-private-key
+        name: Detect Private Key
+
+  # Markdown and documentation
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.37.0
+    hooks:
+      - id: markdownlint
+        name: Markdown Lint
+        args: [--fix]
+        files: \.(md|markdown)$
+
+  # Security scanning
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        name: Detect Secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: go.sum
+
+  # Shell script linting
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.9.0.6
+    hooks:
+      - id: shellcheck
+        name: Shell Check
+        files: \.(sh|bash)$
+
+ci:
+  autofix_commit_msg: |
+    [pre-commit.ci] auto fixes from pre-commit hooks
+
+    for more information, see https://pre-commit.ci
+  autofix_prs: true
+  autoupdate_branch: ''
+  autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
+  autoupdate_schedule: weekly
+  skip: []
+  submodules: false 

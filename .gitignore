@@ -2,3 +2,6 @@
 /target
 /data
 /bin
+coverage.out
+coverage.html
+gosec.sarif

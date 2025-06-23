@@ -1,5 +1,11 @@
 # Pickbox - Distributed Storage System
 
+[![Pickbox CI/CD](https://github.com/aditya/pickbox/actions/workflows/go.yml/badge.svg)](https://github.com/aditya/pickbox/actions/workflows/go.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/aditya/pickbox)](https://goreportcard.com/report/github.com/aditya/pickbox)
+[![codecov](https://codecov.io/gh/aditya/pickbox/branch/main/graph/badge.svg)](https://codecov.io/gh/aditya/pickbox)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/aditya/pickbox)](https://golang.org/dl/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Pickbox is a distributed storage system implemented in Go that provides file operations with replication and consistency guarantees.
 
 ## Features
@@ -192,7 +198,12 @@ graph TB
    cd pickbox
    ```
 
-2. **Start the multi-directional cluster**:
+2. **Setup development environment** (optional but recommended):
+   ```bash
+   make setup  # Install tools and pre-commit hooks
+   ```
+
+3. **Start the multi-directional cluster**:
    ```bash
    chmod +x scripts/run_multi_replication.sh
    ./scripts/run_multi_replication.sh
@@ -211,7 +222,7 @@ graph TB
 
 4. **Run comprehensive tests**:
    ```bash
-   ./scripts/tests/test_multi_replication.sh
+   make test-coverage  # or ./scripts/tests/test_multi_replication.sh
    ```
 
 The cluster runs on:
@@ -312,10 +323,10 @@ The system uses structured logging via `logrus` for better observability. Logs i
 
 Pickbox includes a comprehensive test suite covering unit tests, integration tests, and benchmarks. The system provides:
 
-- **Unit Tests**: Storage package, Raft manager, and multi-replication components
-- **Integration Tests**: End-to-end 3-node cluster testing  
-- **Benchmark Tests**: Performance testing for critical operations
-- **Test Scripts**: Automated testing for all replication modes
+- **Unit Tests**: Storage package, Raft manager, and multi-replication components *(active)*
+- **Integration Tests**: End-to-end 3-node cluster testing *(currently disabled for CI/CD stability)*
+- **Benchmark Tests**: Performance testing for critical operations *(active)*
+- **Test Scripts**: Automated testing for all replication modes *(manual execution only)*
 
 ### Quick Test Commands
 
@@ -337,6 +348,82 @@ go test -v ./pkg/storage ./cmd/multi_replication
 - `scripts/tests/test_multi_replication.sh` - Multi-directional replication tests
 
 **📖 For comprehensive testing documentation, see [`test/README.md`](test/README.md)**
+
+## Code Quality & Linting
+
+Pickbox enforces strict code quality standards through comprehensive linting and automated checks:
+
+### **Linting Tools**
+- **golangci-lint**: Comprehensive Go linter with 25+ enabled checks
+- **staticcheck**: Advanced static analysis for Go
+- **gosec**: Security vulnerability scanner
+- **pre-commit**: Automated quality checks on every commit
+
+### **Quality Checks**
+- ✅ **Unused Code Detection**: Catches unused variables, functions, and struct fields
+- ✅ **Security Scanning**: Detects potential security vulnerabilities
+- ✅ **Code Formatting**: Enforces consistent formatting with `gofmt` and `goimports`
+- ✅ **Performance Analysis**: Identifies inefficient code patterns
+- ✅ **Style Consistency**: Maintains consistent coding style across the project
+
+### **Development Workflow**
+
+```bash
+# Setup development environment
+make setup                    # Install tools + pre-commit hooks
+
+# Code quality commands
+make lint                     # Run all linters
+make lint-fix                 # Auto-fix issues where possible
+make check-unused             # Check for unused code specifically
+make security                 # Run security analysis (go vet + gosec if available)
+make security-install         # Install gosec and run full security analysis
+make verify-all               # Run all checks (lint + test + security)
+
+# Pre-commit integration
+git commit                    # Automatically runs quality checks
+make pre-commit               # Run pre-commit hooks manually
+```
+
+### **CI Integration**
+All quality checks run automatically in GitHub Actions:
+- **Pre-commit hooks** prevent bad code from being committed
+- **CI pipeline** runs comprehensive linting on every push/PR
+- **Security scanning** generates SARIF reports for GitHub Security tab
+- **Coverage enforcement** maintains quality thresholds
+
+## CI/CD Pipeline
+
+Pickbox uses GitHub Actions for continuous integration and deployment:
+
+### Pipeline Features
+- **Multi-Go Version Testing**: Tests against Go 1.21 and 1.22
+- **Comprehensive Test Suite**: Unit tests, integration tests, and benchmarks
+- **Code Quality Checks**: `go vet`, `staticcheck`, and security scanning
+- **Cross-Platform Builds**: Linux, macOS, and Windows binaries
+- **Coverage Reporting**: Automated coverage reports via Codecov
+- **Security Scanning**: Gosec security analysis
+- **Automated Releases**: Binary releases on main branch pushes
+
+### Pipeline Jobs
+
+1. **Test Suite** (`test`) - Runs unit tests with coverage
+2. **Integration Tests** (`integration-test`) - End-to-end testing *(currently disabled - see Improvements section)*
+3. **Build** (`build`) - Cross-platform binary compilation
+4. **Security** (`security`) - Security vulnerability scanning
+5. **Release** (`release`) - Automated GitHub releases
+6. **Notify** (`notify`) - Pipeline status notifications
+
+### Artifacts Published
+- **Coverage Reports**: HTML and raw coverage data
+- **Binaries**: Cross-platform executables for all three modes
+- **Security Reports**: SARIF format security scan results
+- **Integration Logs**: Debug logs from failed integration tests
+
+### Monitoring
+- **Build Status**: [![Pickbox CI/CD](https://github.com/aditya/pickbox/actions/workflows/go.yml/badge.svg)](https://github.com/aditya/pickbox/actions/workflows/go.yml)
+- **Code Coverage**: [![codecov](https://codecov.io/gh/aditya/pickbox/branch/main/graph/badge.svg)](https://codecov.io/gh/aditya/pickbox)
+- **Code Quality**: [![Go Report Card](https://goreportcard.com/badge/github.com/aditya/pickbox)](https://goreportcard.com/report/github.com/aditya/pickbox)
 
 ## Scripts Organization
 
@@ -370,10 +457,13 @@ Each document includes detailed Mermaid diagrams showing:
 - Evolution from basic consensus to advanced multi-directional replication
 
 ## Improvements 
-- [] Refactor code to be more readable
+- [ ] Refactor code to be more readable
 - [x] Add tests for golang files
 - [x] Refactor test bash scripts from scripts folder
 - [x] Generate architecture diagram for each of the 3 versions (replication, live_replication, multi_replication)
+- [x] Set up comprehensive CI/CD pipeline with GitHub Actions
+- [x] Add comprehensive linting with pre-commit hooks and unused field detection
+- [ ] Stabilize integration tests for reliable CI/CD execution (currently all disabled due to timing/resource issues)
 - [ ] Deploy and create client code for this setup to test end-to-end
 
 ## License
