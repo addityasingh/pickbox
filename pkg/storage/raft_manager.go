@@ -1,3 +1,4 @@
+// Package storage implements a distributed storage system with Raft consensus.
 package storage
 
 import (
@@ -14,10 +15,23 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// RaftManager implements replication using HashiCorp's Raft
+const (
+	// OpWrite represents a file write operation.
+	OpWrite = "write"
+	// OpDelete represents a file delete operation.
+	OpDelete = "delete"
+
+	// Default timeouts and configurations
+	defaultApplyTimeout     = 10 * time.Second
+	defaultSnapshotRetain   = 3
+	defaultTransportTimeout = 10 * time.Second
+	defaultTransportMaxPool = 3
+)
+
+// RaftManager manages Raft consensus for distributed file system operations.
 type RaftManager struct {
 	raft      *raft.Raft
-	fsm       *FileSystemFSM
+	fsm       *fileSystemFSM
 	store     *raftboltdb.BoltStore
 	snapshots *raft.FileSnapshotStore
 	transport *raft.NetworkTransport
@@ -26,172 +40,280 @@ type RaftManager struct {
 	dataDir   string
 }
 
-// FileSystemFSM implements the Raft FSM interface for file system operations
-type FileSystemFSM struct {
+// fileSystemFSM implements the Raft finite state machine for file operations.
+type fileSystemFSM struct {
 	store   map[string][]byte
 	mu      sync.RWMutex
 	dataDir string
 }
 
-// Command represents a file system operation
+// Command represents a distributed file system operation.
 type Command struct {
-	Op    string  `json:"op"`    // "write" or "delete"
-	Path  string  `json:"path"`  // file path
-	Data  []byte  `json:"data"`  // file data
-	Chunk ChunkID `json:"chunk"` // chunk identifier
+	Op    string  `json:"op"`    // Operation type: "write" or "delete"
+	Path  string  `json:"path"`  // Relative file path
+	Data  []byte  `json:"data"`  // File content (for write operations)
+	Chunk ChunkID `json:"chunk"` // Associated chunk identifier
 }
 
-// NewRaftManager creates a new Raft-based replication manager
-func NewRaftManager(nodeID string, dataDir string, bindAddr string) (*RaftManager, error) {
+// fileSystemSnapshot implements raft.FSMSnapshot for persistence.
+type fileSystemSnapshot struct {
+	store map[string][]byte
+}
+
+// NewRaftManager creates a new Raft manager for distributed consensus.
+func NewRaftManager(nodeID, dataDir, bindAddr string) (*RaftManager, error) {
+	if nodeID == "" {
+		return nil, fmt.Errorf("node ID cannot be empty")
+	}
+	if dataDir == "" {
+		return nil, fmt.Errorf("data directory cannot be empty")
+	}
+	if bindAddr == "" {
+		return nil, fmt.Errorf("bind address cannot be empty")
+	}
+
 	config := raft.DefaultConfig()
 	config.LocalID = raft.ServerID(nodeID)
 
-	// Create data directory if it doesn't exist
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create data directory: %v", err)
+	if err := os.MkdirAll(dataDir, 0750); err != nil {
+		return nil, fmt.Errorf("creating data directory %q: %w", dataDir, err)
 	}
 
-	// Create FSM
-	fsm := &FileSystemFSM{
+	fsm := &fileSystemFSM{
 		store:   make(map[string][]byte),
 		dataDir: dataDir,
 	}
 
-	// Create store for logs
-	store, err := raftboltdb.NewBoltStore(filepath.Join(dataDir, "raft.db"))
+	// Create Raft log store
+	logStore, err := raftboltdb.NewBoltStore(filepath.Join(dataDir, "raft-log.db"))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create bolt store: %v", err)
+		return nil, fmt.Errorf("creating log store: %w", err)
 	}
+
+	// Create Raft stable store (can reuse the same BoltDB)
+	stableStore := logStore
 
 	// Create snapshot store
-	snapshots, err := raft.NewFileSnapshotStore(dataDir, 3, os.Stderr)
+	snapshots, err := raft.NewFileSnapshotStore(dataDir, defaultSnapshotRetain, os.Stderr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create snapshot store: %v", err)
+		return nil, fmt.Errorf("creating snapshot store: %w", err)
 	}
 
-	// Create transport
-	transport, err := raft.NewTCPTransport(bindAddr, nil, 3, 10*time.Second, os.Stderr)
+	// Create network transport
+	transport, err := raft.NewTCPTransport(bindAddr, nil, defaultTransportMaxPool, defaultTransportTimeout, os.Stderr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create transport: %v", err)
+		return nil, fmt.Errorf("creating transport: %w", err)
 	}
 
 	// Create Raft instance
-	r, err := raft.NewRaft(config, fsm, store, store, snapshots, transport)
+	r, err := raft.NewRaft(config, fsm, logStore, stableStore, snapshots, transport)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create raft: %v", err)
+		return nil, fmt.Errorf("creating raft instance: %w", err)
 	}
+
+	logger := logrus.New()
+	logger.SetLevel(logrus.InfoLevel)
 
 	return &RaftManager{
 		raft:      r,
 		fsm:       fsm,
-		store:     store,
+		store:     logStore,
 		snapshots: snapshots,
 		transport: transport,
-		logger:    logrus.New(),
+		logger:    logger,
 		nodeID:    nodeID,
 		dataDir:   dataDir,
 	}, nil
 }
 
-// Apply implements the FSM interface
-func (f *FileSystemFSM) Apply(log *raft.Log) interface{} {
+// Apply executes a command on the finite state machine.
+func (fsm *fileSystemFSM) Apply(log *raft.Log) interface{} {
 	var cmd Command
 	if err := json.Unmarshal(log.Data, &cmd); err != nil {
-		return fmt.Errorf("failed to unmarshal command: %v", err)
+		return fmt.Errorf("unmarshaling command: %w", err)
 	}
 
-	f.mu.Lock()
-	defer f.mu.Unlock()
+	fsm.mu.Lock()
+	defer fsm.mu.Unlock()
 
 	switch cmd.Op {
-	case "write":
-		filePath := filepath.Join(f.dataDir, cmd.Path)
-		if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
-			return fmt.Errorf("failed to create directory: %v", err)
-		}
-		if err := os.WriteFile(filePath, cmd.Data, 0644); err != nil {
-			return fmt.Errorf("failed to write file: %v", err)
-		}
-		f.store[cmd.Path] = cmd.Data
-	case "delete":
-		filePath := filepath.Join(f.dataDir, cmd.Path)
-		if err := os.Remove(filePath); err != nil {
-			return fmt.Errorf("failed to delete file: %v", err)
-		}
-		delete(f.store, cmd.Path)
+	case OpWrite:
+		return fsm.applyWrite(cmd)
+	case OpDelete:
+		return fsm.applyDelete(cmd)
+	default:
+		return fmt.Errorf("unknown operation: %q", cmd.Op)
 	}
+}
+
+// applyWrite handles file write operations.
+func (fsm *fileSystemFSM) applyWrite(cmd Command) error {
+	filePath := filepath.Join(fsm.dataDir, cmd.Path)
+
+	if err := os.MkdirAll(filepath.Dir(filePath), 0750); err != nil {
+		return fmt.Errorf("creating directory for %q: %w", cmd.Path, err)
+	}
+
+	if err := os.WriteFile(filePath, cmd.Data, 0600); err != nil {
+		return fmt.Errorf("writing file %q: %w", cmd.Path, err)
+	}
+
+	fsm.store[cmd.Path] = cmd.Data
 	return nil
 }
 
-// Snapshot implements the FSM interface
-func (f *FileSystemFSM) Snapshot() (raft.FSMSnapshot, error) {
-	f.mu.RLock()
-	defer f.mu.RUnlock()
+// applyDelete handles file deletion operations.
+func (fsm *fileSystemFSM) applyDelete(cmd Command) error {
+	filePath := filepath.Join(fsm.dataDir, cmd.Path)
 
-	snapshot := make(map[string][]byte)
-	for k, v := range f.store {
-		snapshot[k] = v
+	if err := os.Remove(filePath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("deleting file %q: %w", cmd.Path, err)
 	}
-	return &FileSystemSnapshot{store: snapshot}, nil
+
+	delete(fsm.store, cmd.Path)
+	return nil
 }
 
-// Restore implements the FSM interface
-func (f *FileSystemFSM) Restore(rc io.ReadCloser) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	defer rc.Close()
+// Snapshot creates a point-in-time snapshot of the file system state.
+func (fsm *fileSystemFSM) Snapshot() (raft.FSMSnapshot, error) {
+	fsm.mu.RLock()
+	defer fsm.mu.RUnlock()
+
+	// Create a deep copy of the current state
+	snapshot := make(map[string][]byte, len(fsm.store))
+	for k, v := range fsm.store {
+		// Copy the byte slice to avoid sharing memory
+		data := make([]byte, len(v))
+		copy(data, v)
+		snapshot[k] = data
+	}
+
+	return &fileSystemSnapshot{store: snapshot}, nil
+}
+
+// Restore reconstructs the file system state from a snapshot.
+func (fsm *fileSystemFSM) Restore(rc io.ReadCloser) error {
+	defer func() {
+		if err := rc.Close(); err != nil {
+			logrus.WithError(err).Warn("Error closing restore reader")
+		}
+	}()
+
+	fsm.mu.Lock()
+	defer fsm.mu.Unlock()
 
 	var snapshot map[string][]byte
 	if err := json.NewDecoder(rc).Decode(&snapshot); err != nil {
-		return err
+		return fmt.Errorf("decoding snapshot: %w", err)
 	}
 
-	f.store = snapshot
+	fsm.store = snapshot
 	return nil
 }
 
-// FileSystemSnapshot implements the FSMSnapshot interface
-type FileSystemSnapshot struct {
-	store map[string][]byte
+// Persist writes the snapshot to persistent storage.
+func (s *fileSystemSnapshot) Persist(sink raft.SnapshotSink) error {
+	defer func() {
+		if err := sink.Close(); err != nil {
+			logrus.WithError(err).Warn("Error closing snapshot sink")
+		}
+	}()
+
+	if err := json.NewEncoder(sink).Encode(s.store); err != nil {
+		if cancelErr := sink.Cancel(); cancelErr != nil {
+			logrus.WithError(cancelErr).Warn("Error canceling snapshot")
+		}
+		return fmt.Errorf("encoding snapshot: %w", err)
+	}
+
+	return nil
 }
 
-func (f *FileSystemSnapshot) Persist(sink raft.SnapshotSink) error {
-	return json.NewEncoder(sink).Encode(f.store)
+// Release is called when the snapshot is no longer needed.
+func (s *fileSystemSnapshot) Release() {
+	// No resources to clean up for this implementation
 }
 
-func (f *FileSystemSnapshot) Release() {}
-
-// ReplicateChunk implements replication using Raft
+// ReplicateChunk replicates a data chunk across the Raft cluster.
 func (rm *RaftManager) ReplicateChunk(chunkID ChunkID, data []byte) error {
 	cmd := Command{
-		Op:    "write",
+		Op:    OpWrite,
 		Path:  fmt.Sprintf("chunks/%d_%d", chunkID.FileID, chunkID.ChunkIndex),
 		Data:  data,
 		Chunk: chunkID,
 	}
 
-	data, err := json.Marshal(cmd)
+	cmdData, err := json.Marshal(cmd)
 	if err != nil {
-		return fmt.Errorf("failed to marshal command: %v", err)
+		return fmt.Errorf("marshaling command: %w", err)
 	}
 
-	future := rm.raft.Apply(data, 5*time.Second)
+	future := rm.raft.Apply(cmdData, defaultApplyTimeout)
 	if err := future.Error(); err != nil {
-		return fmt.Errorf("failed to apply command: %v", err)
+		return fmt.Errorf("applying command via raft: %w", err)
 	}
 
 	return nil
 }
 
-// BootstrapCluster initializes a new Raft cluster
+// BootstrapCluster initializes a new single-node Raft cluster.
 func (rm *RaftManager) BootstrapCluster(servers []raft.Server) error {
-	config := raft.Configuration{
-		Servers: servers,
+	config := raft.Configuration{Servers: servers}
+
+	future := rm.raft.BootstrapCluster(config)
+	if err := future.Error(); err != nil {
+		return fmt.Errorf("bootstrapping cluster: %w", err)
 	}
-	return rm.raft.BootstrapCluster(config).Error()
+
+	return nil
 }
 
-// AddVoter adds a new voter to the cluster
-func (rm *RaftManager) AddVoter(id string, addr string) error {
-	return rm.raft.AddVoter(raft.ServerID(id), raft.ServerAddress(addr), 0, 0).Error()
+// AddVoter adds a new voting member to the Raft cluster.
+func (rm *RaftManager) AddVoter(id, addr string) error {
+	if id == "" {
+		return fmt.Errorf("voter ID cannot be empty")
+	}
+	if addr == "" {
+		return fmt.Errorf("voter address cannot be empty")
+	}
+
+	future := rm.raft.AddVoter(raft.ServerID(id), raft.ServerAddress(addr), 0, 0)
+	if err := future.Error(); err != nil {
+		return fmt.Errorf("adding voter %q at %q: %w", id, addr, err)
+	}
+
+	return nil
+}
+
+// Shutdown gracefully shuts down the Raft manager.
+func (rm *RaftManager) Shutdown() error {
+	if rm.raft != nil {
+		future := rm.raft.Shutdown()
+		if err := future.Error(); err != nil {
+			return fmt.Errorf("shutting down raft: %w", err)
+		}
+	}
+
+	if rm.transport != nil {
+		if err := rm.transport.Close(); err != nil {
+			return fmt.Errorf("closing transport: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// State returns the current Raft state (Leader, Follower, etc.).
+func (rm *RaftManager) State() raft.RaftState {
+	return rm.raft.State()
+}
+
+// IsLeader returns true if this node is the current Raft leader.
+func (rm *RaftManager) IsLeader() bool {
+	return rm.raft.State() == raft.Leader
+}
+
+// Leader returns the address of the current leader, if known.
+func (rm *RaftManager) Leader() raft.ServerAddress {
+	return rm.raft.Leader()
 }
