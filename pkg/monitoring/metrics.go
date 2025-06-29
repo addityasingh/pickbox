@@ -22,8 +22,8 @@ type Metrics struct {
 	replicationErrors int64
 
 	// Performance metrics
-	avgReplicationTime  int64 // in milliseconds
-	lastReplicationTime time.Time
+	avgReplicationTime    int64 // in milliseconds
+	lastReplicationTimeNs int64 // Unix nanoseconds, accessed atomically
 
 	// System metrics
 	startTime time.Time
@@ -92,7 +92,7 @@ func NewMonitor(nodeID string, raftNode *raft.Raft, logger *logrus.Logger) *Moni
 // IncrementFilesReplicated increments the files replicated counter.
 func (m *Metrics) IncrementFilesReplicated() {
 	atomic.AddInt64(&m.filesReplicated, 1)
-	m.lastReplicationTime = time.Now()
+	atomic.StoreInt64(&m.lastReplicationTimeNs, time.Now().UnixNano())
 }
 
 // IncrementFilesDeleted increments the files deleted counter.
@@ -130,8 +130,9 @@ func (m *Metrics) GetNodeMetrics() NodeMetrics {
 	runtime.ReadMemStats(&memStats)
 
 	lastRepl := "never"
-	if !m.lastReplicationTime.IsZero() {
-		lastRepl = m.lastReplicationTime.Format(time.RFC3339)
+	lastReplNs := atomic.LoadInt64(&m.lastReplicationTimeNs)
+	if lastReplNs != 0 {
+		lastRepl = time.Unix(0, lastReplNs).Format(time.RFC3339)
 	}
 
 	return NodeMetrics{
