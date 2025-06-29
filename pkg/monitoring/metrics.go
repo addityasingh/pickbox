@@ -63,7 +63,7 @@ type NodeMetrics struct {
 // Monitor provides monitoring capabilities for the distributed storage system.
 type Monitor struct {
 	metrics *Metrics
-	raft    raft.Raft
+	raft    *raft.Raft
 	logger  *logrus.Logger
 }
 
@@ -84,7 +84,7 @@ func NewMetrics(nodeID string, logger *logrus.Logger) *Metrics {
 func NewMonitor(nodeID string, raftNode *raft.Raft, logger *logrus.Logger) *Monitor {
 	return &Monitor{
 		metrics: NewMetrics(nodeID, logger),
-		raft:    *raftNode,
+		raft:    raftNode,
 		logger:  logger,
 	}
 }
