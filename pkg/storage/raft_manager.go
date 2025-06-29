@@ -317,3 +317,8 @@ func (rm *RaftManager) IsLeader() bool {
 func (rm *RaftManager) Leader() raft.ServerAddress {
 	return rm.raft.Leader()
 }
+
+// GetRaft returns the underlying Raft instance.
+func (rm *RaftManager) GetRaft() *raft.Raft {
+	return rm.raft
+}
