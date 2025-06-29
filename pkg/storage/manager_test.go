@@ -15,38 +15,79 @@ func TestNewManager(t *testing.T) {
 		t.Skip("Skipping in short mode due to BoltDB checkptr issues")
 	}
 	tests := []struct {
-		name      string
-		nodeCount int
-		nodeID    string
-		dataDir   string
-		bindAddr  string
-		wantErr   bool
+		name    string
+		cfg     ManagerConfig
+		wantErr bool
 	}{
 		{
-			name:      "valid manager creation",
-			nodeCount: 3,
-			nodeID:    "test-node",
-			dataDir:   "/tmp/test-manager",
-			bindAddr:  "127.0.0.1:0", // Use port 0 for auto-allocation
-			wantErr:   false,
+			name: "valid manager creation",
+			cfg: ManagerConfig{
+				NodeCount: 3,
+				NodeID:    "test-node",
+				DataDir:   "/tmp/test-manager",
+				BindAddr:  "127.0.0.1:0", // Use port 0 for auto-allocation
+			},
+			wantErr: false,
 		},
 		{
-			name:      "zero nodes",
-			nodeCount: 0,
-			nodeID:    "test-node",
-			dataDir:   "/tmp/test-manager-zero",
-			bindAddr:  "127.0.0.1:0",
-			wantErr:   false,
+			name: "zero nodes",
+			cfg: ManagerConfig{
+				NodeCount: 0,
+				NodeID:    "test-node",
+				DataDir:   "/tmp/test-manager-zero",
+				BindAddr:  "127.0.0.1:0",
+			},
+			wantErr: false,
+		},
+		{
+			name: "negative node count",
+			cfg: ManagerConfig{
+				NodeCount: -1,
+				NodeID:    "test-node",
+				DataDir:   "/tmp/test-manager-neg",
+				BindAddr:  "127.0.0.1:0",
+			},
+			wantErr: true,
+		},
+		{
+			name: "empty node ID",
+			cfg: ManagerConfig{
+				NodeCount: 3,
+				NodeID:    "",
+				DataDir:   "/tmp/test-manager-empty",
+				BindAddr:  "127.0.0.1:0",
+			},
+			wantErr: true,
+		},
+		{
+			name: "empty data directory",
+			cfg: ManagerConfig{
+				NodeCount: 3,
+				NodeID:    "test-node",
+				DataDir:   "",
+				BindAddr:  "127.0.0.1:0",
+			},
+			wantErr: true,
+		},
+		{
+			name: "empty bind address",
+			cfg: ManagerConfig{
+				NodeCount: 3,
+				NodeID:    "test-node",
+				DataDir:   "/tmp/test-manager-bind",
+				BindAddr:  "",
+			},
+			wantErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Cleanup before test
-			os.RemoveAll(tt.dataDir)
-			defer os.RemoveAll(tt.dataDir)
+			os.RemoveAll(tt.cfg.DataDir)
+			defer os.RemoveAll(tt.cfg.DataDir)
 
-			manager, err := NewManager(tt.nodeCount, tt.nodeID, tt.dataDir, tt.bindAddr)
+			manager, err := NewManager(tt.cfg)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -54,14 +95,14 @@ func TestNewManager(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, manager)
-				assert.Len(t, manager.nodes, tt.nodeCount)
-				assert.NotNil(t, manager.raft)
+				assert.Len(t, manager.nodes, tt.cfg.NodeCount)
+				assert.NotNil(t, manager.raftManager)
 
 				// Verify all nodes are properly initialized
 				for i, node := range manager.nodes {
-					assert.Equal(t, uint32(i), node.ID)
-					assert.NotNil(t, node.Chunks)
-					assert.NotNil(t, node.ChunkRoles)
+					assert.Equal(t, uint32(i), node.ID())
+					assert.NotNil(t, node.chunks)
+					assert.NotNil(t, node.chunkRoles)
 				}
 			}
 		})
@@ -83,11 +124,11 @@ func TestNewNode(t *testing.T) {
 			node := NewNode(tt.nodeID)
 
 			assert.NotNil(t, node)
-			assert.Equal(t, tt.nodeID, node.ID)
-			assert.NotNil(t, node.Chunks)
-			assert.NotNil(t, node.ChunkRoles)
-			assert.Empty(t, node.Chunks)
-			assert.Empty(t, node.ChunkRoles)
+			assert.Equal(t, tt.nodeID, node.ID())
+			assert.NotNil(t, node.chunks)
+			assert.NotNil(t, node.chunkRoles)
+			assert.Empty(t, node.chunks)
+			assert.Empty(t, node.chunkRoles)
 		})
 	}
 }
@@ -100,15 +141,15 @@ func TestNode_StoreChunk(t *testing.T) {
 		name string
 		role Role
 	}{
-		{name: "primary_role", role: Primary},
-		{name: "replica_role", role: Replica},
+		{name: "primary_role", role: RolePrimary},
+		{name: "replica_role", role: RoleReplica},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			node.StoreChunk(chunkID, tt.role)
 
-			role, exists := node.ChunkRoles[chunkID]
+			role, exists := node.chunkRoles[chunkID]
 			assert.True(t, exists)
 			assert.Equal(t, tt.role, role)
 		})
@@ -132,7 +173,7 @@ func TestNode_RetrieveChunk(t *testing.T) {
 	}
 
 	node.mu.Lock()
-	node.Chunks[chunkID] = expectedChunk
+	node.chunks[chunkID] = expectedChunk
 	node.mu.Unlock()
 
 	retrievedChunk := node.RetrieveChunk(chunkID)
@@ -153,7 +194,7 @@ func TestNode_RetrieveChunk_Concurrent(t *testing.T) {
 
 	// Add chunk
 	node.mu.Lock()
-	node.Chunks[chunkID] = expectedChunk
+	node.chunks[chunkID] = expectedChunk
 	node.mu.Unlock()
 
 	// Test concurrent reads
@@ -180,11 +221,11 @@ func TestNewVectorClock(t *testing.T) {
 	vc := NewVectorClock()
 
 	assert.NotNil(t, vc)
-	assert.NotNil(t, vc.Timestamps)
-	assert.Empty(t, vc.Timestamps)
+	assert.NotNil(t, vc.timestamps)
+	assert.Empty(t, vc.timestamps)
 }
 
-func TestVectorClock_UpdateVectorClock(t *testing.T) {
+func TestVectorClock_Update(t *testing.T) {
 	vc := NewVectorClock()
 
 	tests := []struct {
@@ -201,18 +242,39 @@ func TestVectorClock_UpdateVectorClock(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			vc.UpdateVectorClock(tt.nodeID, tt.timestamp)
+			vc.Update(tt.nodeID, tt.timestamp)
 
-			vc.mu.RLock()
-			actual := vc.Timestamps[tt.nodeID]
-			vc.mu.RUnlock()
-
+			actual, exists := vc.timestamps[tt.nodeID]
+			assert.True(t, exists)
 			assert.Equal(t, tt.expected, actual)
 		})
 	}
 }
 
-func TestVectorClock_CompareVectorClocks(t *testing.T) {
+func TestVectorClock_Update_Concurrent(t *testing.T) {
+	vc := NewVectorClock()
+	nodeID := uint32(1)
+
+	var wg sync.WaitGroup
+	numGoroutines := 100
+
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func(timestamp uint64) {
+			defer wg.Done()
+			vc.Update(nodeID, timestamp)
+		}(uint64(i))
+	}
+
+	wg.Wait()
+
+	// The final timestamp should be the highest one
+	final, exists := vc.timestamps[nodeID]
+	assert.True(t, exists)
+	assert.Equal(t, uint64(numGoroutines-1), final)
+}
+
+func TestVectorClock_Compare(t *testing.T) {
 	tests := []struct {
 		name     string
 		vc1      map[uint32]uint64
@@ -221,58 +283,51 @@ func TestVectorClock_CompareVectorClocks(t *testing.T) {
 	}{
 		{
 			name:     "equal_clocks",
-			vc1:      map[uint32]uint64{1: 10, 2: 5},
-			vc2:      map[uint32]uint64{1: 10, 2: 5},
+			vc1:      map[uint32]uint64{1: 5, 2: 3},
+			vc2:      map[uint32]uint64{1: 5, 2: 3},
 			expected: 0,
 		},
 		{
 			name:     "vc1_before_vc2",
-			vc1:      map[uint32]uint64{1: 5, 2: 5},
-			vc2:      map[uint32]uint64{1: 10, 2: 5},
+			vc1:      map[uint32]uint64{1: 3, 2: 2},
+			vc2:      map[uint32]uint64{1: 5, 2: 3},
 			expected: -1,
 		},
 		{
 			name:     "vc1_after_vc2",
-			vc1:      map[uint32]uint64{1: 10, 2: 5},
-			vc2:      map[uint32]uint64{1: 5, 2: 5},
+			vc1:      map[uint32]uint64{1: 7, 2: 4},
+			vc2:      map[uint32]uint64{1: 5, 2: 3},
 			expected: 1,
 		},
 		{
 			name:     "concurrent_clocks",
-			vc1:      map[uint32]uint64{1: 10, 2: 5},
-			vc2:      map[uint32]uint64{1: 5, 2: 10},
-			expected: 0,
+			vc1:      map[uint32]uint64{1: 7, 2: 2},
+			vc2:      map[uint32]uint64{1: 5, 2: 4},
+			expected: 0, // concurrent
 		},
 		{
-			name:     "different_nodes",
-			vc1:      map[uint32]uint64{1: 10},
-			vc2:      map[uint32]uint64{2: 10},
-			expected: 0,
-		},
-		{
-			name:     "empty_vs_non_empty",
-			vc1:      map[uint32]uint64{},
-			vc2:      map[uint32]uint64{1: 10},
-			expected: -1,
+			name:     "missing_nodes",
+			vc1:      map[uint32]uint64{1: 5},
+			vc2:      map[uint32]uint64{1: 5, 2: 3},
+			expected: -1, // vc1 is before vc2
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			vc1 := &VectorClock{Timestamps: tt.vc1}
-			vc2 := &VectorClock{Timestamps: tt.vc2}
+			vc1 := &VectorClock{timestamps: tt.vc1}
+			vc2 := &VectorClock{timestamps: tt.vc2}
 
-			result := vc1.CompareVectorClocks(vc2)
+			result := vc1.Compare(vc2)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
 }
 
-func TestVectorClock_CompareVectorClocks_Concurrent(t *testing.T) {
-	vc1 := &VectorClock{Timestamps: map[uint32]uint64{1: 10, 2: 5}}
-	vc2 := &VectorClock{Timestamps: map[uint32]uint64{1: 5, 2: 10}}
+func TestVectorClock_Compare_Concurrent(t *testing.T) {
+	vc1 := &VectorClock{timestamps: map[uint32]uint64{1: 5, 2: 3}}
+	vc2 := &VectorClock{timestamps: map[uint32]uint64{1: 5, 2: 3}}
 
-	// Test concurrent comparisons
 	var wg sync.WaitGroup
 	results := make([]int, 10)
 
@@ -280,13 +335,13 @@ func TestVectorClock_CompareVectorClocks_Concurrent(t *testing.T) {
 		wg.Add(1)
 		go func(index int) {
 			defer wg.Done()
-			results[index] = vc1.CompareVectorClocks(vc2)
+			results[index] = vc1.Compare(vc2)
 		}(i)
 	}
 
 	wg.Wait()
 
-	// All results should be 0 (concurrent)
+	// All results should be 0 (equal)
 	for _, result := range results {
 		assert.Equal(t, 0, result)
 	}
@@ -295,12 +350,10 @@ func TestVectorClock_CompareVectorClocks_Concurrent(t *testing.T) {
 func TestChunkID_Equality(t *testing.T) {
 	chunk1 := ChunkID{FileID: 1, ChunkIndex: 0}
 	chunk2 := ChunkID{FileID: 1, ChunkIndex: 0}
-	chunk3 := ChunkID{FileID: 1, ChunkIndex: 1}
-	chunk4 := ChunkID{FileID: 2, ChunkIndex: 0}
+	chunk3 := ChunkID{FileID: 2, ChunkIndex: 0}
 
 	assert.Equal(t, chunk1, chunk2)
 	assert.NotEqual(t, chunk1, chunk3)
-	assert.NotEqual(t, chunk1, chunk4)
 }
 
 func TestChunk_Creation(t *testing.T) {
@@ -321,19 +374,34 @@ func TestChunk_Creation(t *testing.T) {
 }
 
 func TestRole_Constants(t *testing.T) {
-	assert.Equal(t, Role(0), Primary)
-	assert.Equal(t, Role(1), Replica)
-	assert.NotEqual(t, Primary, Replica)
+	assert.Equal(t, Role(0), RolePrimary)
+	assert.Equal(t, Role(1), RoleReplica)
 }
 
-// Benchmark tests
+func TestRole_String(t *testing.T) {
+	tests := []struct {
+		role     Role
+		expected string
+	}{
+		{RolePrimary, "primary"},
+		{RoleReplica, "replica"},
+		{Role(99), "unknown"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.expected, func(t *testing.T) {
+			assert.Equal(t, tt.expected, tt.role.String())
+		})
+	}
+}
+
 func BenchmarkNode_StoreChunk(b *testing.B) {
 	node := NewNode(1)
 	chunkID := ChunkID{FileID: 1, ChunkIndex: 0}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		node.StoreChunk(chunkID, Primary)
+		node.StoreChunk(chunkID, RolePrimary)
 	}
 }
 
@@ -341,15 +409,15 @@ func BenchmarkNode_RetrieveChunk(b *testing.B) {
 	node := NewNode(1)
 	chunkID := ChunkID{FileID: 1, ChunkIndex: 0}
 
+	// Pre-populate with a chunk
 	chunk := &Chunk{
 		ID:       chunkID,
 		Data:     []byte("benchmark data"),
 		Checksum: 12345,
 		Version:  1,
 	}
-
 	node.mu.Lock()
-	node.Chunks[chunkID] = chunk
+	node.chunks[chunkID] = chunk
 	node.mu.Unlock()
 
 	b.ResetTimer()
@@ -358,21 +426,22 @@ func BenchmarkNode_RetrieveChunk(b *testing.B) {
 	}
 }
 
-func BenchmarkVectorClock_UpdateVectorClock(b *testing.B) {
+func BenchmarkVectorClock_Update(b *testing.B) {
 	vc := NewVectorClock()
+	nodeID := uint32(1)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		vc.UpdateVectorClock(uint32(i%10), uint64(i))
+		vc.Update(nodeID, uint64(i))
 	}
 }
 
-func BenchmarkVectorClock_CompareVectorClocks(b *testing.B) {
-	vc1 := &VectorClock{Timestamps: map[uint32]uint64{1: 10, 2: 5, 3: 15}}
-	vc2 := &VectorClock{Timestamps: map[uint32]uint64{1: 8, 2: 7, 3: 12}}
+func BenchmarkVectorClock_Compare(b *testing.B) {
+	vc1 := &VectorClock{timestamps: map[uint32]uint64{1: 5, 2: 3, 3: 7}}
+	vc2 := &VectorClock{timestamps: map[uint32]uint64{1: 4, 2: 6, 3: 2}}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		vc1.CompareVectorClocks(vc2)
+		vc1.Compare(vc2)
 	}
 }

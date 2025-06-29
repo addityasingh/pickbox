@@ -465,6 +465,8 @@ Each document includes detailed Mermaid diagrams showing:
 - [x] Add comprehensive linting with pre-commit hooks and unused field detection
 - [ ] Stabilize integration tests for reliable CI/CD execution (currently all disabled due to timing/resource issues)
 - [ ] Deploy and create client code for this setup to test end-to-end
+- [ ] Make it a generalized solution for N nodes instead of hardcoded 3 nodes
+- [ ] Understand the RaftFSM
 
 ## License
 

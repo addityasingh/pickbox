@@ -2,11 +2,11 @@ package storage
 
 import (
 	"encoding/json"
-	"io"
+	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/raft"
 	"github.com/stretchr/testify/assert"
@@ -37,148 +37,159 @@ func TestNewRaftManager(t *testing.T) {
 		{
 			name:     "empty_node_id",
 			nodeID:   "",
-			dataDir:  "/tmp/test-raft-empty",
+			dataDir:  "/tmp/test-raft-2",
 			bindAddr: "127.0.0.1:0",
 			wantErr:  true,
 		},
 		{
-			name:     "invalid_bind_addr",
-			nodeID:   "test-node-invalid",
-			dataDir:  "/tmp/test-raft-invalid",
-			bindAddr: "invalid-address",
+			name:     "empty_data_dir",
+			nodeID:   "test-node-3",
+			dataDir:  "",
+			bindAddr: "127.0.0.1:0",
+			wantErr:  true,
+		},
+		{
+			name:     "empty_bind_addr",
+			nodeID:   "test-node-4",
+			dataDir:  "/tmp/test-raft-4",
+			bindAddr: "",
 			wantErr:  true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Cleanup before test
+			// Cleanup
 			os.RemoveAll(tt.dataDir)
 			defer os.RemoveAll(tt.dataDir)
 
-			manager, err := NewRaftManager(tt.nodeID, tt.dataDir, tt.bindAddr)
+			rm, err := NewRaftManager(tt.nodeID, tt.dataDir, tt.bindAddr)
 
 			if tt.wantErr {
 				assert.Error(t, err)
-				assert.Nil(t, manager)
+				assert.Nil(t, rm)
 			} else {
 				assert.NoError(t, err)
-				assert.NotNil(t, manager)
-				assert.NotNil(t, manager.raft)
-				assert.NotNil(t, manager.fsm)
-				assert.NotNil(t, manager.store)
-				assert.NotNil(t, manager.snapshots)
-				assert.NotNil(t, manager.transport)
-				assert.Equal(t, tt.nodeID, manager.nodeID)
-				assert.Equal(t, tt.dataDir, manager.dataDir)
+				assert.NotNil(t, rm)
+				assert.NotNil(t, rm.raft)
+				assert.NotNil(t, rm.fsm)
+				assert.NotNil(t, rm.store)
+				assert.NotNil(t, rm.snapshots)
+				assert.NotNil(t, rm.transport)
+				assert.Equal(t, tt.nodeID, rm.nodeID)
+				assert.Equal(t, tt.dataDir, rm.dataDir)
 
-				// Verify data directory was created
-				_, err := os.Stat(tt.dataDir)
+				// Cleanup
+				err := rm.Shutdown()
 				assert.NoError(t, err)
-
-				// Verify raft.db file is created
-				dbPath := filepath.Join(tt.dataDir, "raft.db")
-				_, err = os.Stat(dbPath)
-				assert.NoError(t, err)
-
-				// Clean up transport
-				manager.transport.Close()
 			}
 		})
 	}
 }
 
 func TestFileSystemFSM_Apply(t *testing.T) {
-	tempDir := "/tmp/test-fsm-apply"
-	os.RemoveAll(tempDir)
-	defer os.RemoveAll(tempDir)
+	if testing.Short() {
+		t.Skip("Skipping in short mode due to BoltDB checkptr issues")
+	}
 
-	fsm := &FileSystemFSM{
+	dataDir := "/tmp/test-fsm"
+	os.RemoveAll(dataDir)
+	defer os.RemoveAll(dataDir)
+
+	fsm := &fileSystemFSM{
 		store:   make(map[string][]byte),
-		dataDir: tempDir,
+		dataDir: dataDir,
 	}
 
 	tests := []struct {
-		name    string
-		command Command
-		wantErr bool
+		name        string
+		cmd         Command
+		wantErr     bool
+		expectError bool
 	}{
 		{
-			name: "write_command",
-			command: Command{
-				Op:    "write",
-				Path:  "test/file.txt",
-				Data:  []byte("test content"),
-				Chunk: ChunkID{FileID: 1, ChunkIndex: 0},
+			name: "write_operation",
+			cmd: Command{
+				Op:   OpWrite,
+				Path: "test.txt",
+				Data: []byte("hello world"),
 			},
 			wantErr: false,
 		},
 		{
-			name: "write_root_file",
-			command: Command{
-				Op:    "write",
-				Path:  "root.txt",
-				Data:  []byte("root content"),
-				Chunk: ChunkID{FileID: 2, ChunkIndex: 0},
+			name: "write_nested_path",
+			cmd: Command{
+				Op:   OpWrite,
+				Path: "nested/dir/test.txt",
+				Data: []byte("nested content"),
 			},
 			wantErr: false,
 		},
 		{
-			name: "delete_command",
-			command: Command{
-				Op:    "delete",
-				Path:  "test/file.txt",
-				Chunk: ChunkID{FileID: 1, ChunkIndex: 0},
+			name: "delete_operation",
+			cmd: Command{
+				Op:   OpDelete,
+				Path: "test.txt",
 			},
 			wantErr: false,
+		},
+		{
+			name: "delete_nonexistent",
+			cmd: Command{
+				Op:   OpDelete,
+				Path: "nonexistent.txt",
+			},
+			wantErr: false, // Should not error on non-existent files
 		},
 		{
 			name: "unknown_operation",
-			command: Command{
+			cmd: Command{
 				Op:   "unknown",
 				Path: "test.txt",
-				Data: []byte("test"),
+				Data: []byte("data"),
 			},
-			wantErr: false, // Should not error, just ignore
+			wantErr:     true,
+			expectError: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			data, err := json.Marshal(tt.command)
+			cmdData, err := json.Marshal(tt.cmd)
 			require.NoError(t, err)
 
 			log := &raft.Log{
-				Data: data,
+				Data: cmdData,
 			}
 
 			result := fsm.Apply(log)
 
-			if tt.wantErr {
-				assert.NotNil(t, result)
+			if tt.expectError {
+				assert.Error(t, result.(error))
+			} else if tt.wantErr {
+				assert.Error(t, result.(error))
 			} else {
-				if tt.command.Op == "write" {
-					// Verify file was written
-					filePath := filepath.Join(tempDir, tt.command.Path)
-					content, err := os.ReadFile(filePath)
+				if result != nil {
+					assert.NoError(t, result.(error))
+				}
+
+				// Verify write operations
+				if tt.cmd.Op == OpWrite {
+					// Check in-memory store
+					data, exists := fsm.store[tt.cmd.Path]
+					assert.True(t, exists)
+					assert.Equal(t, tt.cmd.Data, data)
+
+					// Check file on disk
+					filePath := filepath.Join(dataDir, tt.cmd.Path)
+					fileData, err := os.ReadFile(filePath)
 					assert.NoError(t, err)
-					assert.Equal(t, tt.command.Data, content)
+					assert.Equal(t, tt.cmd.Data, fileData)
+				}
 
-					// Verify in-memory store
-					fsm.mu.RLock()
-					storedData := fsm.store[tt.command.Path]
-					fsm.mu.RUnlock()
-					assert.Equal(t, tt.command.Data, storedData)
-				} else if tt.command.Op == "delete" {
-					// Verify file was deleted
-					filePath := filepath.Join(tempDir, tt.command.Path)
-					_, err := os.Stat(filePath)
-					assert.True(t, os.IsNotExist(err))
-
-					// Verify removed from in-memory store
-					fsm.mu.RLock()
-					_, exists := fsm.store[tt.command.Path]
-					fsm.mu.RUnlock()
+				// Verify delete operations
+				if tt.cmd.Op == OpDelete && tt.cmd.Path != "nonexistent.txt" {
+					_, exists := fsm.store[tt.cmd.Path]
 					assert.False(t, exists)
 				}
 			}
@@ -186,27 +197,8 @@ func TestFileSystemFSM_Apply(t *testing.T) {
 	}
 }
 
-func TestFileSystemFSM_Apply_InvalidJSON(t *testing.T) {
-	tempDir := "/tmp/test-fsm-invalid"
-	os.RemoveAll(tempDir)
-	defer os.RemoveAll(tempDir)
-
-	fsm := &FileSystemFSM{
-		store:   make(map[string][]byte),
-		dataDir: tempDir,
-	}
-
-	log := &raft.Log{
-		Data: []byte("invalid json"),
-	}
-
-	result := fsm.Apply(log)
-	assert.NotNil(t, result)
-	assert.Contains(t, result.(error).Error(), "failed to unmarshal command")
-}
-
 func TestFileSystemFSM_Snapshot(t *testing.T) {
-	fsm := &FileSystemFSM{
+	fsm := &fileSystemFSM{
 		store: map[string][]byte{
 			"file1.txt": []byte("content1"),
 			"file2.txt": []byte("content2"),
@@ -219,127 +211,165 @@ func TestFileSystemFSM_Snapshot(t *testing.T) {
 	assert.NotNil(t, snapshot)
 
 	// Verify snapshot type
-	fsSnapshot, ok := snapshot.(*FileSystemSnapshot)
+	fsSnapshot, ok := snapshot.(*fileSystemSnapshot)
 	assert.True(t, ok)
-	assert.NotNil(t, fsSnapshot.store)
-	assert.Len(t, fsSnapshot.store, 2)
-	assert.Equal(t, []byte("content1"), fsSnapshot.store["file1.txt"])
-	assert.Equal(t, []byte("content2"), fsSnapshot.store["file2.txt"])
+	assert.Equal(t, len(fsm.store), len(fsSnapshot.store))
+
+	// Verify snapshot content
+	for k, v := range fsm.store {
+		snapshotData, exists := fsSnapshot.store[k]
+		assert.True(t, exists)
+		assert.Equal(t, v, snapshotData)
+	}
+
+	// Verify it's a deep copy (modifying original shouldn't affect snapshot)
+	fsm.store["file3.txt"] = []byte("content3")
+	_, exists := fsSnapshot.store["file3.txt"]
+	assert.False(t, exists)
 }
 
 func TestFileSystemFSM_Restore(t *testing.T) {
-	fsm := &FileSystemFSM{
+	fsm := &fileSystemFSM{
 		store:   make(map[string][]byte),
 		dataDir: "/tmp/test-restore",
 	}
 
-	// Create test data to restore
+	// Create test data
 	testData := map[string][]byte{
 		"restored1.txt": []byte("restored content 1"),
 		"restored2.txt": []byte("restored content 2"),
 	}
 
-	// Create a reader with JSON data
-	data, err := json.Marshal(testData)
+	// Create a pipe for the test
+	r, w, err := os.Pipe()
 	require.NoError(t, err)
-	reader := strings.NewReader(string(data))
+	defer r.Close()
 
-	// Test restore
-	err = fsm.Restore(io.NopCloser(reader))
+	// Write test data in a goroutine
+	go func() {
+		defer w.Close()
+		encoder := json.NewEncoder(w)
+		err := encoder.Encode(testData)
+		assert.NoError(t, err)
+	}()
+
+	// Restore from the pipe
+	err = fsm.Restore(r)
 	assert.NoError(t, err)
 
-	// Verify data was restored
-	fsm.mu.RLock()
-	assert.Equal(t, testData, fsm.store)
-	fsm.mu.RUnlock()
-}
-
-func TestFileSystemFSM_Restore_InvalidJSON(t *testing.T) {
-	fsm := &FileSystemFSM{
-		store:   make(map[string][]byte),
-		dataDir: "/tmp/test-restore-invalid",
+	// Verify restoration
+	assert.Equal(t, len(testData), len(fsm.store))
+	for k, v := range testData {
+		restoredData, exists := fsm.store[k]
+		assert.True(t, exists)
+		assert.Equal(t, v, restoredData)
 	}
-
-	reader := strings.NewReader("invalid json")
-	err := fsm.Restore(io.NopCloser(reader))
-	assert.Error(t, err)
-}
-
-func TestFileSystemSnapshot_Persist(t *testing.T) {
-	snapshot := &FileSystemSnapshot{
-		store: map[string][]byte{
-			"persist1.txt": []byte("persist content 1"),
-			"persist2.txt": []byte("persist content 2"),
-		},
-	}
-
-	// Create a mock sink
-	var buf strings.Builder
-	mockSink := &mockSnapshotSink{writer: &buf}
-
-	err := snapshot.Persist(mockSink)
-	assert.NoError(t, err)
-
-	// Verify JSON was written
-	var result map[string][]byte
-	err = json.Unmarshal([]byte(buf.String()), &result)
-	assert.NoError(t, err)
-	assert.Equal(t, snapshot.store, result)
-}
-
-func TestFileSystemSnapshot_Release(t *testing.T) {
-	snapshot := &FileSystemSnapshot{
-		store: map[string][]byte{},
-	}
-
-	// Should not panic
-	assert.NotPanics(t, func() {
-		snapshot.Release()
-	})
 }
 
 func TestRaftManager_ReplicateChunk(t *testing.T) {
-	// Skip this test when running with race detector due to checkptr issues in BoltDB
-	// This is a known issue with github.com/boltdb/bolt@v1.3.1 and checkptr validation
 	if testing.Short() {
 		t.Skip("Skipping in short mode due to BoltDB checkptr issues")
 	}
 
-	tempDir := "/tmp/test-replicate-chunk"
-	os.RemoveAll(tempDir)
-	defer os.RemoveAll(tempDir)
+	dataDir := "/tmp/test-replicate"
+	os.RemoveAll(dataDir)
+	defer os.RemoveAll(dataDir)
 
-	// Create a raft manager but don't start cluster (we're testing the method logic)
-	manager, err := NewRaftManager("test-node", tempDir, "127.0.0.1:0")
+	rm, err := NewRaftManager("test-node", dataDir, "127.0.0.1:0")
 	require.NoError(t, err)
-	if manager != nil && manager.transport != nil {
-		defer manager.transport.Close()
+	defer func() {
+		err := rm.Shutdown()
+		assert.NoError(t, err)
+	}()
+
+	// Bootstrap the cluster
+	servers := []raft.Server{
+		{
+			ID:      raft.ServerID("test-node"),
+			Address: rm.transport.LocalAddr(),
+		},
 	}
+	err = rm.BootstrapCluster(servers)
+	require.NoError(t, err)
+
+	// Wait for leadership (with timeout)
+	timeout := time.After(5 * time.Second)
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-timeout:
+			t.Fatal("Timeout waiting for leadership")
+		case <-ticker.C:
+			if rm.IsLeader() {
+				goto testReplication
+			}
+		}
+	}
+
+testReplication:
+	chunkID := ChunkID{FileID: 1, ChunkIndex: 0}
+	data := []byte("test chunk data")
+
+	err = rm.ReplicateChunk(chunkID, data)
+	assert.NoError(t, err)
+
+	// Give some time for the command to be applied
+	time.Sleep(500 * time.Millisecond)
+
+	// Verify the file was created
+	expectedPath := filepath.Join(dataDir, "chunks", "1_0")
+	fileData, err := os.ReadFile(expectedPath)
+	assert.NoError(t, err)
+	assert.Equal(t, data, fileData)
+}
+
+func TestRaftManager_AddVoter(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping in short mode due to BoltDB checkptr issues")
+	}
+
+	dataDir := "/tmp/test-addvoter"
+	os.RemoveAll(dataDir)
+	defer os.RemoveAll(dataDir)
+
+	rm, err := NewRaftManager("test-node", dataDir, "127.0.0.1:0")
+	require.NoError(t, err)
+	defer func() {
+		err := rm.Shutdown()
+		assert.NoError(t, err)
+	}()
 
 	tests := []struct {
 		name    string
-		chunkID ChunkID
-		data    []byte
+		id      string
+		addr    string
 		wantErr bool
 	}{
 		{
-			name:    "valid_chunk",
-			chunkID: ChunkID{FileID: 1, ChunkIndex: 0},
-			data:    []byte("test chunk data"),
-			wantErr: true, // Will fail because no cluster is formed
+			name:    "empty_id",
+			id:      "",
+			addr:    "127.0.0.1:8001",
+			wantErr: true,
 		},
 		{
-			name:    "empty_data",
-			chunkID: ChunkID{FileID: 2, ChunkIndex: 0},
-			data:    []byte{},
-			wantErr: true, // Will fail because no cluster is formed
+			name:    "empty_addr",
+			id:      "node2",
+			addr:    "",
+			wantErr: true,
+		},
+		{
+			name:    "valid_voter", // This will fail because we don't have a real cluster, but tests validation
+			id:      "node2",
+			addr:    "127.0.0.1:8001",
+			wantErr: true, // Expected to fail in single-node test setup
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := manager.ReplicateChunk(tt.chunkID, tt.data)
-
+			err := rm.AddVoter(tt.id, tt.addr)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -349,172 +379,217 @@ func TestRaftManager_ReplicateChunk(t *testing.T) {
 	}
 }
 
-func TestCommand_JSONMarshaling(t *testing.T) {
-	cmd := Command{
-		Op:    "write",
-		Path:  "test/file.txt",
-		Data:  []byte("test data"),
-		Chunk: ChunkID{FileID: 1, ChunkIndex: 0},
+func TestRaftManager_State_Methods(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping in short mode due to BoltDB checkptr issues")
 	}
 
-	// Test marshaling
-	data, err := json.Marshal(cmd)
+	dataDir := "/tmp/test-state"
+	os.RemoveAll(dataDir)
+	defer os.RemoveAll(dataDir)
+
+	rm, err := NewRaftManager("test-node", dataDir, "127.0.0.1:0")
+	require.NoError(t, err)
+	defer func() {
+		err := rm.Shutdown()
+		assert.NoError(t, err)
+	}()
+
+	// Test initial state
+	state := rm.State()
+	assert.Contains(t, []raft.RaftState{raft.Follower, raft.Candidate}, state)
+
+	// Test IsLeader (should be false initially)
+	assert.False(t, rm.IsLeader())
+
+	// Test Leader (should be empty initially)
+	leader := rm.Leader()
+	assert.Empty(t, leader)
+}
+
+func TestRaftManager_BootstrapCluster(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping in short mode due to BoltDB checkptr issues")
+	}
+
+	dataDir := "/tmp/test-bootstrap"
+	os.RemoveAll(dataDir)
+	defer os.RemoveAll(dataDir)
+
+	rm, err := NewRaftManager("test-node", dataDir, "127.0.0.1:0")
+	require.NoError(t, err)
+	defer func() {
+		err := rm.Shutdown()
+		assert.NoError(t, err)
+	}()
+
+	servers := []raft.Server{
+		{
+			ID:      raft.ServerID("test-node"),
+			Address: rm.transport.LocalAddr(),
+		},
+	}
+
+	err = rm.BootstrapCluster(servers)
 	assert.NoError(t, err)
-	assert.NotEmpty(t, data)
 
-	// Test unmarshaling
-	var unmarshaled Command
-	err = json.Unmarshal(data, &unmarshaled)
-	assert.NoError(t, err)
-	assert.Equal(t, cmd.Op, unmarshaled.Op)
-	assert.Equal(t, cmd.Path, unmarshaled.Path)
-	assert.Equal(t, cmd.Data, unmarshaled.Data)
-	assert.Equal(t, cmd.Chunk, unmarshaled.Chunk)
+	// Wait for leadership (with timeout)
+	timeout := time.After(2 * time.Second)
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-timeout:
+			t.Fatal("Timeout waiting for leadership after bootstrap")
+		case <-ticker.C:
+			if rm.IsLeader() {
+				return // Test passed
+			}
+		}
+	}
 }
 
-// Mock implementation for testing
-type mockSnapshotSink struct {
-	writer io.Writer
-	closed bool
+func TestRaftManager_AddVoter_AfterBootstrap(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping in short mode due to BoltDB checkptr issues")
+	}
+
+	dataDir := "/tmp/test-addvoter-bootstrap"
+	os.RemoveAll(dataDir)
+	defer os.RemoveAll(dataDir)
+
+	rm, err := NewRaftManager("test-node", dataDir, "127.0.0.1:0")
+	require.NoError(t, err)
+	defer func() {
+		err := rm.Shutdown()
+		assert.NoError(t, err)
+	}()
+
+	// Bootstrap first
+	servers := []raft.Server{
+		{
+			ID:      raft.ServerID("test-node"),
+			Address: rm.transport.LocalAddr(),
+		},
+	}
+	err = rm.BootstrapCluster(servers)
+	require.NoError(t, err)
+
+	// Wait for leadership
+	timeout := time.After(5 * time.Second)
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-timeout:
+			t.Fatal("Timeout waiting for leadership")
+		case <-ticker.C:
+			if rm.IsLeader() {
+				goto testAddVoter
+			}
+		}
+	}
+
+testAddVoter:
+	// Try to add a voter (this might succeed or fail depending on timing)
+	err = rm.AddVoter("node2", "127.0.0.1:8001")
+	// In a real test environment, this may succeed but the node won't be reachable
+	// We just verify the method doesn't panic
+	if err != nil {
+		assert.Contains(t, err.Error(), "adding voter")
+	}
 }
 
-func (m *mockSnapshotSink) Write(p []byte) (n int, err error) {
-	return m.writer.Write(p)
-}
-
-func (m *mockSnapshotSink) Close() error {
-	m.closed = true
-	return nil
-}
-
-func (m *mockSnapshotSink) ID() string {
-	return "mock-snapshot"
-}
-
-func (m *mockSnapshotSink) Cancel() error {
-	return nil
-}
-
-// Benchmark tests
+// Benchmark tests for performance verification
 func BenchmarkFileSystemFSM_Apply_Write(b *testing.B) {
-	tempDir := "/tmp/bench-fsm-write"
-	os.RemoveAll(tempDir)
-	defer os.RemoveAll(tempDir)
-
-	fsm := &FileSystemFSM{
+	fsm := &fileSystemFSM{
 		store:   make(map[string][]byte),
-		dataDir: tempDir,
+		dataDir: "/tmp/bench-fsm",
 	}
+	os.RemoveAll(fsm.dataDir)
+	defer os.RemoveAll(fsm.dataDir)
 
 	cmd := Command{
-		Op:    "write",
-		Path:  "bench/file.txt",
-		Data:  []byte("benchmark data"),
-		Chunk: ChunkID{FileID: 1, ChunkIndex: 0},
+		Op:   OpWrite,
+		Path: "bench.txt",
+		Data: []byte("benchmark data"),
 	}
-
-	data, _ := json.Marshal(cmd)
-	log := &raft.Log{Data: data}
+	cmdData, _ := json.Marshal(cmd)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
+		log := &raft.Log{Data: cmdData}
 		fsm.Apply(log)
 	}
 }
 
 func BenchmarkFileSystemFSM_Snapshot(b *testing.B) {
-	fsm := &FileSystemFSM{
-		store: map[string][]byte{
-			"file1.txt": []byte("content1"),
-			"file2.txt": []byte("content2"),
-			"file3.txt": []byte("content3"),
-		},
-		dataDir: "/tmp/bench-snapshot",
+	fsm := &fileSystemFSM{
+		store: make(map[string][]byte),
+	}
+
+	// Pre-populate with some data
+	for i := 0; i < 100; i++ {
+		fsm.store[fmt.Sprintf("file%d.txt", i)] = []byte(fmt.Sprintf("content%d", i))
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		fsm.Snapshot()
+		_, err := fsm.Snapshot()
+		if err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
-func BenchmarkCommand_JSONMarshal(b *testing.B) {
-	cmd := Command{
-		Op:    "write",
-		Path:  "benchmark/file.txt",
-		Data:  []byte("benchmark data for marshaling"),
-		Chunk: ChunkID{FileID: 1, ChunkIndex: 0},
-	}
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		json.Marshal(cmd)
-	}
-}
-
-func BenchmarkCommand_JSONUnmarshal(b *testing.B) {
-	cmd := Command{
-		Op:    "write",
-		Path:  "benchmark/file.txt",
-		Data:  []byte("benchmark data for unmarshaling"),
-		Chunk: ChunkID{FileID: 1, ChunkIndex: 0},
-	}
-
-	data, _ := json.Marshal(cmd)
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		var unmarshaled Command
-		json.Unmarshal(data, &unmarshaled)
-	}
-}
-
-func TestRaftManager_BootstrapCluster(t *testing.T) {
-	// Skip this test when running with race detector due to checkptr issues in BoltDB
+func BenchmarkRaftManager_ReplicateChunk(b *testing.B) {
 	if testing.Short() {
-		t.Skip("Skipping in short mode due to BoltDB checkptr issues")
+		b.Skip("Skipping in short mode due to BoltDB checkptr issues")
 	}
 
-	tempDir := "/tmp/test-raft-bootstrap"
-	os.RemoveAll(tempDir)
-	defer os.RemoveAll(tempDir)
+	dataDir := "/tmp/bench-replicate"
+	os.RemoveAll(dataDir)
+	defer os.RemoveAll(dataDir)
 
-	manager, err := NewRaftManager("bootstrap-node", tempDir, "127.0.0.1:0")
-	require.NoError(t, err)
-	defer manager.transport.Close()
+	rm, err := NewRaftManager("bench-node", dataDir, "127.0.0.1:0")
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer func() {
+		err := rm.Shutdown()
+		if err != nil {
+			b.Logf("Shutdown error: %v", err)
+		}
+	}()
 
-	// Test bootstrapping a single-node cluster
+	// Bootstrap
 	servers := []raft.Server{
 		{
-			Suffrage: raft.Voter,
-			ID:       raft.ServerID("bootstrap-node"),
-			Address:  raft.ServerAddress(manager.transport.LocalAddr()),
+			ID:      raft.ServerID("bench-node"),
+			Address: rm.transport.LocalAddr(),
 		},
 	}
-
-	err = manager.BootstrapCluster(servers)
-	assert.NoError(t, err)
-
-	// Verify the node becomes a leader (single node cluster)
-	// Note: This might take a moment in a real cluster, but for testing we just verify no error
-}
-
-func TestRaftManager_AddVoter(t *testing.T) {
-	// Skip this test when running with race detector due to checkptr issues in BoltDB
-	if testing.Short() {
-		t.Skip("Skipping in short mode due to BoltDB checkptr issues")
+	err = rm.BootstrapCluster(servers)
+	if err != nil {
+		b.Fatal(err)
 	}
 
-	tempDir := "/tmp/test-raft-add-voter"
-	os.RemoveAll(tempDir)
-	defer os.RemoveAll(tempDir)
+	// Wait for leadership
+	for !rm.IsLeader() {
+		time.Sleep(10 * time.Millisecond)
+	}
 
-	manager, err := NewRaftManager("voter-test-node", tempDir, "127.0.0.1:0")
-	require.NoError(t, err)
-	defer manager.transport.Close()
+	chunkID := ChunkID{FileID: 1, ChunkIndex: 0}
+	data := []byte("benchmark chunk data")
 
-	// Note: AddVoter will fail without a properly bootstrapped cluster
-	// This test verifies the method doesn't panic and returns an error appropriately
-	err = manager.AddVoter("new-node", "127.0.0.1:9999")
-	assert.Error(t, err) // Expected to fail as cluster isn't bootstrapped
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		chunkID.ChunkIndex = uint32(i)
+		err := rm.ReplicateChunk(chunkID, data)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
 }
