@@ -1,9 +1,9 @@
 # Pickbox - Distributed Storage System
 
-[![Pickbox CI/CD](https://github.com/aditya/pickbox/actions/workflows/go.yml/badge.svg)](https://github.com/aditya/pickbox/actions/workflows/go.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/aditya/pickbox)](https://goreportcard.com/report/github.com/aditya/pickbox)
-[![codecov](https://codecov.io/gh/aditya/pickbox/branch/main/graph/badge.svg)](https://codecov.io/gh/aditya/pickbox)
-[![Go Version](https://img.shields.io/github/go-mod/go-version/aditya/pickbox)](https://golang.org/dl/)
+[![Pickbox CI/CD](https://github.com/addityasingh/pickbox/actions/workflows/go.yml/badge.svg)](https://github.com/addityasingh/pickbox/actions/workflows/go.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/addityasingh/pickbox)](https://goreportcard.com/report/github.com/addityasingh/pickbox)
+[![codecov](https://codecov.io/gh/addityasingh/pickbox/branch/main/graph/badge.svg)](https://codecov.io/gh/addityasingh/pickbox)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/addityasingh/pickbox)](https://golang.org/dl/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Pickbox is a distributed storage system implemented in Go that provides file operations with replication and consistency guarantees.
@@ -421,9 +421,9 @@ Pickbox uses GitHub Actions for continuous integration and deployment:
 - **Integration Logs**: Debug logs from failed integration tests
 
 ### Monitoring
-- **Build Status**: [![Pickbox CI/CD](https://github.com/aditya/pickbox/actions/workflows/go.yml/badge.svg)](https://github.com/aditya/pickbox/actions/workflows/go.yml)
-- **Code Coverage**: [![codecov](https://codecov.io/gh/aditya/pickbox/branch/main/graph/badge.svg)](https://codecov.io/gh/aditya/pickbox)
-- **Code Quality**: [![Go Report Card](https://goreportcard.com/badge/github.com/aditya/pickbox)](https://goreportcard.com/report/github.com/aditya/pickbox)
+- **Build Status**: [![Pickbox CI/CD](https://github.com/addityasingh/pickbox/actions/workflows/go.yml/badge.svg)](https://github.com/addityasingh/pickbox/actions/workflows/go.yml)
+- **Code Coverage**: [![codecov](https://codecov.io/gh/addityasingh/pickbox/branch/main/graph/badge.svg)](https://codecov.io/gh/addityasingh/pickbox)
+- **Code Quality**: [![Go Report Card](https://goreportcard.com/badge/github.com/addityasingh/pickbox)](https://goreportcard.com/report/github.com/addityasingh/pickbox)
 
 ## Scripts Organization
 
