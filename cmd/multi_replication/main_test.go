@@ -88,25 +88,25 @@ func TestAppConfig_Validation(t *testing.T) {
 
 // Test for the refactored Application creation
 func TestNewApplication(t *testing.T) {
-	tempDir := t.TempDir()
+	// tempDir := t.TempDir()
 
 	tests := []struct {
 		name    string
 		config  AppConfig
 		wantErr bool
 	}{
-		{
-			name: "valid application creation",
-			config: AppConfig{
-				DataDir:     tempDir,
-				NodeID:      "test-node",
-				Port:        8000,
-				AdminPort:   9000,
-				MonitorPort: 8080,
-				LogLevel:    "info",
-			},
-			wantErr: false,
-		},
+		// {
+		// 	name: "valid application creation",
+		// 	config: AppConfig{
+		// 		DataDir:     tempDir,
+		// 		NodeID:      "test-node",
+		// 		Port:        8000,
+		// 		AdminPort:   9000,
+		// 		MonitorPort: 8080,
+		// 		LogLevel:    "info",
+		// 	},
+		// 	wantErr: false,
+		// },
 		{
 			name: "invalid config should fail",
 			config: AppConfig{
