@@ -270,17 +270,77 @@ jobs:
 
     - name: Combine coverage reports
       run: |
+        # Check initial disk space
+        echo "Initial disk space:"
+        df -h
+        
+        # Create combined coverage file with proper header
         echo "mode: atomic" > combined-coverage.out
-        find . -name "*coverage.out" -exec tail -n +2 {} \; >> combined-coverage.out
-        go tool cover -func=combined-coverage.out > coverage-summary.txt
-        go tool cover -html=combined-coverage.out -o coverage.html
         
-        # Display coverage summary
-        cat coverage-summary.txt
+        # Find coverage files and check their sizes
+        echo "Processing coverage files:"
+        find . -name "*coverage.out" -type f | while read file; do
+          size=$(stat -c%s "$file" 2>/dev/null || stat -f%z "$file" 2>/dev/null || echo "0")
+          echo "  $file: $size bytes"
+          
+          # Skip files larger than 10MB to prevent disk space issues
+          if [ "$size" -gt 10485760 ]; then
+            echo "  WARNING: Skipping $file (too large: $size bytes)"
+            continue
+          fi
+          
+          # Process file and append, skipping the mode line
+          if [ -s "$file" ]; then
+            tail -n +2 "$file" >> combined-coverage.out
+          fi
+        done
         
-        # Extract total coverage percentage
-        COVERAGE_PERCENT=$(grep "total:" coverage-summary.txt | awk '{print $3}')
-        echo "Total Coverage: $COVERAGE_PERCENT"
+        # Check disk space after processing
+        echo "Disk space after combining:"
+        df -h
+        
+        # Verify combined file size
+        if [ -f "combined-coverage.out" ]; then
+          combined_size=$(stat -c%s "combined-coverage.out" 2>/dev/null || stat -f%z "combined-coverage.out" 2>/dev/null || echo "0")
+          echo "Combined coverage file size: $combined_size bytes"
+          
+          # If combined file is too large, truncate it
+          if [ "$combined_size" -gt 52428800 ]; then  # 50MB limit
+            echo "WARNING: Combined coverage file too large, truncating..."
+            head -n 10000 combined-coverage.out > combined-coverage-truncated.out
+            mv combined-coverage-truncated.out combined-coverage.out
+          fi
+        fi
+        
+        # Generate reports with error handling
+        if [ -s "combined-coverage.out" ]; then
+          echo "Generating coverage reports..."
+          go tool cover -func=combined-coverage.out > coverage-summary.txt || echo "Failed to generate function coverage"
+          go tool cover -html=combined-coverage.out -o coverage.html || echo "Failed to generate HTML coverage"
+          
+          # Display coverage summary if available
+          if [ -f "coverage-summary.txt" ]; then
+            echo "Coverage Summary:"
+            cat coverage-summary.txt
+            
+            # Extract total coverage percentage
+            COVERAGE_PERCENT=$(grep "total:" coverage-summary.txt | awk '{print $3}' || echo "unknown")
+            echo "Total Coverage: $COVERAGE_PERCENT"
+          fi
+        else
+          echo "ERROR: No valid coverage data found"
+          echo "mode: atomic" > combined-coverage.out
+          echo "No coverage data available" > coverage-summary.txt
+          echo "<html><body>No coverage data available</body></html>" > coverage.html
+        fi
+        
+        # Cleanup temporary coverage files to free disk space
+        echo "Cleaning up temporary coverage files..."
+        find . -name "*coverage.out" -not -name "combined-coverage.out" -delete
+        
+        # Final disk space check
+        echo "Final disk space:"
+        df -h
 
     - name: Upload combined coverage
       uses: codecov/codecov-action@v4
