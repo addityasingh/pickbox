@@ -305,6 +305,8 @@ jobs:
           combined-coverage.out
           coverage-summary.txt
           coverage.html
+        token: ${{secrets.CODECOV_TOKEN}}
+        slug: addityasingh/pickbox
 
   # Test reports job
   test-reports:
