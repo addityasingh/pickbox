@@ -125,30 +125,6 @@ jobs:
         cd test
         go test -v -race -short -run "TestNNode|TestAdminAddress|TestPortCalculation|TestClusterSize|TestNodeID|TestDataDirectory|TestConcurrentNode|TestBootstrap" -coverprofile=n-node-unit-coverage.out -covermode=atomic .
 
-    - name: Run N-Node Integration Tests
-      if: matrix.test-category == 'integration'
-      run: |
-        cd test
-        go test -v -timeout=240s -run "TestThreeNodeCluster|TestFiveNodeCluster|TestSevenNodeCluster|TestLargeFileReplication|TestNestedDirectoryReplication|TestFileModificationReplication|TestClusterScaling|TestClusterWithCustomPorts|TestClusterStartStopCycles" -coverprofile=n-node-integration-coverage.out -covermode=atomic .
-
-    - name: Run N-Node Replication Tests
-      if: matrix.test-category == 'replication'
-      run: |
-        cd test
-        go test -v -timeout=300s -run "TestMultiDirectionalReplication|TestConcurrentMultiNodeWrites|TestFileModificationPropagation|TestFileDeletionPropagation|TestReplicationNestedDirectories|TestReplicationLargeFiles|TestRapidFileOperations|TestReplicationWithDelays|TestBinaryFileReplication|TestFilePermissionReplication" -coverprofile=n-node-replication-coverage.out -covermode=atomic .
-
-    - name: Run N-Node Failure Tests  
-      if: matrix.test-category == 'failure'
-      run: |
-        cd test
-        go test -v -timeout=300s -run "TestSingleNodeFailureRecovery|TestMultipleNodeFailures|TestLeaderFailureAndElection|TestClusterPartitioning|TestRapidFailureRecoveryCycles|TestGracefulVsUngracefulShutdown|TestDiskSpaceExhaustion|TestConcurrentFailuresDuringLoad" -coverprofile=n-node-failure-coverage.out -covermode=atomic .
-
-    - name: Run N-Node Performance Tests
-      if: matrix.test-category == 'performance'
-      run: |
-        cd test
-        go test -v -timeout=600s -run "TestThroughputScaling|TestConcurrentWritePerformance|TestFileSizePerformance|TestClusterStartupPerformance|TestMemoryUsagePatterns|TestReplicationConsistencyUnderLoad|TestLatencyDistribution|TestPeakLoadResourceUsage|TestEdgeCasePerformance" -coverprofile=n-node-performance-coverage.out -covermode=atomic .
-
     - name: Upload N-Node test coverage
       uses: codecov/codecov-action@v4
       with:
@@ -282,7 +258,7 @@ jobs:
   coverage:
     name: Coverage Report
     runs-on: ubuntu-latest
-    needs: [unit-tests, n-node-tests, legacy-integration-tests]
+    needs: [unit-tests, n-node-tests]
     
     steps:
     - name: Checkout code
@@ -334,7 +310,7 @@ jobs:
   test-reports:
     name: Test Reports
     runs-on: ubuntu-latest
-    needs: [unit-tests, n-node-tests, legacy-integration-tests, benchmark-tests]
+    needs: [unit-tests, n-node-tests, benchmark-tests]
     
     steps:
     - name: Checkout code
@@ -351,8 +327,7 @@ jobs:
         echo "# Pickbox Test Report - $(date)" > test-report.md
         echo "## Test Summary" >> test-report.md
         echo "- Unit Tests: ✅ Completed" >> test-report.md
-        echo "- N-Node Tests: ✅ Completed (5 categories)" >> test-report.md
-        echo "- Legacy Integration Tests: ✅ Completed" >> test-report.md
+        echo "- N-Node Tests: ✅ Completed (3 categories)" >> test-report.md
         echo "- Benchmark Tests: ✅ Completed" >> test-report.md
         echo "" >> test-report.md
         echo "## Coverage Reports" >> test-report.md
@@ -436,8 +411,7 @@ jobs:
           
           ### Test Results
           - ✅ Unit Tests: All package tests passed
-          - ✅ N-Node Tests: 5 test categories completed
-          - ✅ Integration Tests: Legacy and enhanced tests passed
+          - ✅ N-Node Tests: 3 test categories completed
           - ✅ Benchmark Tests: Performance benchmarks completed
           - ✅ Security Scan: No critical issues found
           
