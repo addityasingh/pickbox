@@ -1,8 +1,8 @@
 package monitoring
 
 import (
-	"testing"
 	"sync"
+	"testing"
 	"time"
 
 	"github.com/sirupsen/logrus"

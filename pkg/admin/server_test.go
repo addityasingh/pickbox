@@ -167,7 +167,7 @@ func TestCommand_Validation(t *testing.T) {
 			// For now, we just check that the command can be marshaled
 			_, err := json.Marshal(tt.cmd)
 			assert.NoError(t, err)
-			
+
 			// In a real implementation, we would have a Validate() method
 			// For now, we just check basic field presence
 			if tt.valid {
