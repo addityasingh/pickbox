@@ -1,0 +1,175 @@
+{
+  "global": {
+    "nosec": "enabled",
+    "audit": "enabled",
+    "confidence": "low",
+    "severity": "low",
+    "quiet": false,
+    "verbose": "text",
+    "output": "stdout",
+    "log": "stderr",
+    "format": "text",
+    "color": true
+  },
+  "rules": {
+    "G101": {
+      "mode": "enabled",
+      "level": "error",
+      "description": "Look for hard coded credentials"
+    },
+    "G102": {
+      "mode": "enabled", 
+      "level": "error",
+      "description": "Bind to all interfaces"
+    },
+    "G103": {
+      "mode": "enabled",
+      "level": "error", 
+      "description": "Audit the use of unsafe block"
+    },
+    "G104": {
+      "mode": "enabled",
+      "level": "warning",
+      "description": "Audit errors not checked"
+    },
+    "G105": {
+      "mode": "enabled",
+      "level": "error",
+      "description": "Audit the use of big.Exp function"
+    },
+    "G106": {
+      "mode": "enabled",
+      "level": "error",
+      "description": "Audit the use of ssh.InsecureIgnoreHostKey"
+    },
+    "G107": {
+      "mode": "enabled",
+      "level": "error",
+      "description": "Url provided to HTTP request as taint input"
+    },
+    "G108": {
+      "mode": "enabled",
+      "level": "error",
+      "description": "Profiling endpoint automatically exposed on /debug/pprof"
+    },
+    "G109": {
+      "mode": "enabled",
+      "level": "error",
+      "description": "Potential integer overflow when converting to string"
+    },
+    "G110": {
+      "mode": "enabled",
+      "level": "error",
+      "description": "Potential DoS vulnerability via decompression bomb"
+    },
+    "G201": {
+      "mode": "enabled",
+      "level": "error",
+      "description": "SQL query construction using format string"
+    },
+    "G202": {
+      "mode": "enabled",
+      "level": "error",
+      "description": "SQL query construction using string concatenation"
+    },
+    "G203": {
+      "mode": "enabled",
+      "level": "error",
+      "description": "Use of unescaped data in HTML templates"
+    },
+    "G204": {
+      "mode": "enabled",
+      "level": "error",
+      "description": "Audit use of command execution"
+    },
+    "G301": {
+      "mode": "enabled",
+      "level": "warning",
+      "description": "Poor file permissions used when creating a directory"
+    },
+    "G302": {
+      "mode": "enabled",
+      "level": "warning",
+      "description": "Poor file permissions used when creation file or using chmod"
+    },
+    "G303": {
+      "mode": "enabled",
+      "level": "warning",
+      "description": "Creating tempfile using a predictable path"
+    },
+    "G304": {
+      "mode": "enabled",
+      "level": "error",
+      "description": "File path provided as taint input"
+    },
+    "G305": {
+      "mode": "enabled",
+      "level": "error",
+      "description": "File traversal when extracting zip archive"
+    },
+    "G306": {
+      "mode": "enabled",
+      "level": "warning",
+      "description": "Poor file permissions used when writing to a file"
+    },
+    "G307": {
+      "mode": "enabled",
+      "level": "error",
+      "description": "Deferring a method which returns an error"
+    },
+    "G401": {
+      "mode": "enabled",
+      "level": "error",
+      "description": "Detect the usage of DES, RC4, MD5 or SHA1"
+    },
+    "G402": {
+      "mode": "enabled",
+      "level": "error",
+      "description": "Look for bad TLS connection settings"
+    },
+    "G403": {
+      "mode": "enabled",
+      "level": "error",
+      "description": "Ensure minimum RSA key length of 2048 bits"
+    },
+    "G404": {
+      "mode": "enabled",
+      "level": "error",
+      "description": "Insecure random number source (rand)"
+    },
+    "G501": {
+      "mode": "enabled",
+      "level": "error",
+      "description": "Import blacklist: crypto/md5"
+    },
+    "G502": {
+      "mode": "enabled",
+      "level": "error",
+      "description": "Import blacklist: crypto/des"
+    },
+    "G503": {
+      "mode": "enabled",
+      "level": "error",
+      "description": "Import blacklist: crypto/rc4"
+    },
+    "G504": {
+      "mode": "enabled",
+      "level": "error",
+      "description": "Import blacklist: net/http/cgi"
+    },
+    "G505": {
+      "mode": "enabled",
+      "level": "error",
+      "description": "Import blacklist: crypto/sha1"
+    },
+    "G601": {
+      "mode": "enabled",
+      "level": "error",
+      "description": "Implicit memory aliasing of items from a range statement"
+    }
+  },
+  "exclude": [
+    "test/*.go",
+    "*_test.go"
+  ]
+} 

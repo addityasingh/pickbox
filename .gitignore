@@ -5,3 +5,35 @@
 coverage.out
 coverage.html
 gosec.sarif
+gosec-results.*
+
+# Security and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets.yml
+secrets.yaml
+credentials.json
+config.json
+.aws/
+.gcp/
+.azure/
+
+# IDE and editor files
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
