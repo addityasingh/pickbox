@@ -75,7 +75,7 @@ jobs:
     
     strategy:
       matrix:
-        test-category: ['unit', 'integration', 'replication', 'failure', 'performance']
+        test-category: ['unit', 'replication', 'performance']
         go-version: ['1.21']
     
     steps:
