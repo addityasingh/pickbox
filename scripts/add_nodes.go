@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"net"
 	"time"
@@ -38,31 +39,65 @@ func addNodeToCluster(leaderAddr, nodeID, nodeAddr string) error {
 }
 
 func main() {
-	// Wait for node1 to be ready
-	fmt.Println("Waiting for node1 to be ready...")
-	time.Sleep(5 * time.Second)
+	// Parse command line arguments for flexibility
+	var nodeCount int
+	var basePort int
+	var leaderAdminPort int
+	var host string
+	var startNode int
+	var help bool
 
-	// Try to add node2 and node3 to the cluster
-	nodes := []struct {
-		ID   string
-		Addr string
-	}{
-		{"node2", "127.0.0.1:8002"},
-		{"node3", "127.0.0.1:8003"},
+	flag.IntVar(&nodeCount, "nodes", 2, "Number of nodes to add")
+	flag.IntVar(&basePort, "base-port", 8001, "Base port for Raft")
+	flag.IntVar(&leaderAdminPort, "admin-port", 9001, "Leader admin port")
+	flag.StringVar(&host, "host", "127.0.0.1", "Host address")
+	flag.IntVar(&startNode, "start", 2, "Starting node number")
+	flag.BoolVar(&help, "help", false, "Show help")
+	flag.Parse()
+
+	if help {
+		fmt.Println("Generic Node Adder for Pickbox")
+		fmt.Println("Usage: go run add_nodes.go [options]")
+		fmt.Println("Options:")
+		fmt.Println("  -nodes N       Number of nodes to add (default: 2)")
+		fmt.Println("  -base-port P   Base port for Raft (default: 8001)")
+		fmt.Println("  -admin-port P  Leader admin port (default: 9001)")
+		fmt.Println("  -host H        Host address (default: 127.0.0.1)")
+		fmt.Println("  -start N       Starting node number (default: 2)")
+		fmt.Println("  -help          Show this help")
+		fmt.Println("\nExamples:")
+		fmt.Println("  go run add_nodes.go                    # Add node2, node3")
+		fmt.Println("  go run add_nodes.go -nodes 5           # Add node2-node6")
+		fmt.Println("  go run add_nodes.go -nodes 2 -start 4  # Add node4, node5")
+		return
 	}
 
-	leaderAddr := "127.0.0.1:8001"
+	// Wait for leader to be ready
+	fmt.Printf("Waiting for leader to be ready...\n")
+	time.Sleep(5 * time.Second)
 
-	for _, node := range nodes {
-		fmt.Printf("Adding %s to cluster...\n", node.ID)
+	leaderAddr := fmt.Sprintf("%s:%d", host, leaderAdminPort)
 
-		err := addNodeToCluster(leaderAddr, node.ID, node.Addr)
+	fmt.Printf("Adding %d nodes starting from node%d...\n", nodeCount, startNode)
+
+	// Generate and add nodes dynamically
+	for i := 0; i < nodeCount; i++ {
+		nodeNum := startNode + i
+		nodeID := fmt.Sprintf("node%d", nodeNum)
+		nodePort := basePort + nodeNum - 1
+		nodeAddr := fmt.Sprintf("%s:%d", host, nodePort)
+
+		fmt.Printf("Adding %s (%s) to cluster...\n", nodeID, nodeAddr)
+
+		err := addNodeToCluster(leaderAddr, nodeID, nodeAddr)
 		if err != nil {
-			fmt.Printf("Failed to add %s: %v\n", node.ID, err)
+			fmt.Printf("Failed to add %s: %v\n", nodeID, err)
 		} else {
-			fmt.Printf("Successfully added %s to cluster\n", node.ID)
+			fmt.Printf("Successfully added %s to cluster\n", nodeID)
 		}
 
 		time.Sleep(1 * time.Second)
 	}
+
+	fmt.Printf("Node addition completed!\n")
 }
