@@ -190,7 +190,7 @@ graph TB
 - Go 1.21 or later
 - Git for cloning the repository
 
-### Quick Start (Multi-Directional Replication)
+### Quick Start (Generic N-Node Clusters)
 
 1. **Clone the repository**:
    ```bash
@@ -203,13 +203,22 @@ graph TB
    make setup  # Install tools and pre-commit hooks
    ```
 
-3. **Start the multi-directional cluster**:
+3. **Start a cluster (any size)**:
    ```bash
-   chmod +x scripts/run_multi_replication.sh
-   ./scripts/run_multi_replication.sh
+   # 3-node cluster (backward compatible)
+   ./scripts/cluster_manager.sh start -n 3
+   
+   # 5-node cluster
+   ./scripts/cluster_manager.sh start -n 5
+   
+   # 7-node cluster with custom ports
+   ./scripts/cluster_manager.sh start -n 7 -p 9000 -a 10000
+   
+   # Use configuration file
+   ./scripts/cluster_manager.sh start -c examples/cluster-configs/5-node-cluster.conf
    ```
 
-3. **Test the system**:
+4. **Test the system**:
    ```bash
    # Create files on any node - they replicate everywhere!
    echo "Hello from node1!" > data/node1/test1.txt
@@ -220,26 +229,90 @@ graph TB
    ls data/node*/
    ```
 
-4. **Run comprehensive tests**:
+5. **Run comprehensive tests**:
    ```bash
-   make test-coverage  # or ./scripts/tests/test_multi_replication.sh
+   # Test specific cluster size
+   ./scripts/tests/test_n_replication.sh -n 5
+   
+   # Test with original scripts (3-node)
+   ./scripts/tests/test_multi_replication.sh
    ```
 
-The cluster runs on:
-- **Node 1 (Leader)**: 127.0.0.1:8001 (Raft) + 127.0.0.1:9001 (Admin)
-- **Node 2 (Follower)**: 127.0.0.1:8002 (Raft) + 127.0.0.1:9002 (Admin)  
-- **Node 3 (Follower)**: 127.0.0.1:8003 (Raft) + 127.0.0.1:9003 (Admin)
+**Port Assignment Schema** (for N nodes starting at BASE_PORT=8001):
+- **node1**: Raft=8001, Admin=9001, Monitor=6001
+- **node2**: Raft=8002, Admin=9002, Monitor=6002  
+- **nodeN**: Raft=800N, Admin=900N, Monitor=600N
+- **Dashboard**: 8080 (shared across all nodes)
 
-### Alternative Versions
+## Cluster Management (N-Node Support)
 
-You can also run earlier evolution steps:
+Pickbox now supports **generic N-node clusters** with flexible configuration. You can run anywhere from 1 to 20+ nodes with automatic port assignment and cluster management.
+
+### Generic Cluster Manager
+
+The new `cluster_manager.sh` provides comprehensive cluster lifecycle management:
 
 ```bash
-# Step 1: Basic Raft replication
-./scripts/run_replication.sh
+# Start clusters of any size
+./scripts/cluster_manager.sh start -n 5                    # 5-node cluster
+./scripts/cluster_manager.sh start -n 10 -p 18000          # 10-node with high ports
 
-# Step 2: Live replication (leader-only)
-./scripts/run_live_replication.sh
+# Manage cluster lifecycle
+./scripts/cluster_manager.sh status -n 5                   # Check status
+./scripts/cluster_manager.sh logs -n 5                     # View logs
+./scripts/cluster_manager.sh restart -n 5                  # Restart cluster
+./scripts/cluster_manager.sh clean                         # Clean everything
+
+# Use configuration files
+./scripts/cluster_manager.sh start -c examples/cluster-configs/10-node-high-ports.conf
+```
+
+### Configuration Files
+
+Pre-built configurations for common scenarios:
+
+- **`examples/cluster-configs/5-node-cluster.conf`** - Standard 5-node setup
+- **`examples/cluster-configs/7-node-cluster.conf`** - 7-node cluster  
+- **`examples/cluster-configs/10-node-high-ports.conf`** - 10-node with high ports
+
+**Example configuration:**
+```bash
+NODE_COUNT=5
+BASE_PORT=8001
+ADMIN_BASE_PORT=9001
+MONITOR_BASE_PORT=6001
+DASHBOARD_PORT=8080
+HOST=127.0.0.1
+DATA_DIR=data
+BINARY=cmd/multi_replication/main.go
+```
+
+### Advanced Usage
+
+```bash
+# Multi-environment clusters
+./scripts/cluster_manager.sh start -n 3 -p 8001            # Development  
+./scripts/cluster_manager.sh start -n 5 -p 12001 --data-dir staging  # Staging
+./scripts/cluster_manager.sh start -n 7 -p 18001 --data-dir prod     # Production
+
+# Dynamic expansion
+./scripts/cluster_manager.sh start -n 3                    # Start with 3 nodes
+go run scripts/add_nodes.go -nodes 2 -start 4             # Add node4, node5
+
+# Generic testing
+./scripts/tests/test_n_replication.sh -n 5 -v             # Test 5-node cluster
+./scripts/tests/test_n_replication.sh -n 10 -p 18001      # Test with custom ports
+```
+
+### Backward Compatibility
+
+All existing 3-node scripts remain functional:
+
+```bash
+# Legacy scripts (still work)
+./scripts/run_multi_replication.sh                        # 3-node cluster
+./scripts/run_live_replication.sh                         # Live replication demo
+./scripts/tests/test_multi_replication.sh                 # 3-node tests
 ```
 
 ## Usage
@@ -465,7 +538,7 @@ Each document includes detailed Mermaid diagrams showing:
 - [x] Add comprehensive linting with pre-commit hooks and unused field detection
 - [ ] Stabilize integration tests for reliable CI/CD execution (currently all disabled due to timing/resource issues)
 - [ ] Deploy and create client code for this setup to test end-to-end
-- [ ] Make it a generalized solution for N nodes instead of hardcoded 3 nodes
+- [x] Make it a generalized solution for N nodes instead of hardcoded 3 nodes
 - [ ] Understand the RaftFSM
 
 ## License

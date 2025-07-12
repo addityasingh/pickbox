@@ -7,9 +7,12 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -177,9 +180,8 @@ type raftWrapper struct {
 }
 
 func (rw *raftWrapper) Apply(data []byte, timeout time.Duration) raft.ApplyFuture {
-	// Use the RaftManager's ReplicateChunk method or similar
-	// This is a simplified implementation
-	return nil // Will be implemented properly
+	// Apply the command directly through the Raft instance
+	return rw.rm.GetRaft().Apply(data, timeout)
 }
 
 func (rw *raftWrapper) State() raft.RaftState {
@@ -271,13 +273,67 @@ func (app *Application) handleClusterMembership() {
 		// Wait a bit for bootstrap node to be ready
 		time.Sleep(5 * time.Second)
 
-		// Use admin interface to join cluster
-		app.logger.Infof("Requesting to join cluster via admin interface")
-		// In a real implementation, this would make an admin API call to the bootstrap node
+		// Request to join cluster via admin interface
+		app.logger.Infof("Requesting to join cluster at %s", app.config.JoinAddr)
+
+		nodeAddr := fmt.Sprintf("127.0.0.1:%d", app.config.Port)
+		leaderAdminAddr := app.deriveAdminAddress(app.config.JoinAddr)
+
+		if err := app.requestJoinCluster(leaderAdminAddr, app.config.NodeID, nodeAddr); err != nil {
+			app.logger.WithError(err).Warn("Failed to join cluster via admin interface")
+		} else {
+			app.logger.Info("Successfully joined cluster")
+		}
 	}
 
 	// Monitor leadership changes
 	go app.monitorLeadership()
+}
+
+// deriveAdminAddress converts a Raft address to an admin address.
+// Assumes admin port is 1000 higher than raft port.
+func (app *Application) deriveAdminAddress(raftAddr string) string {
+	host, portStr, err := net.SplitHostPort(raftAddr)
+	if err != nil {
+		// Fallback to default admin port
+		return fmt.Sprintf("127.0.0.1:%d", app.config.AdminPort)
+	}
+
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		return fmt.Sprintf("127.0.0.1:%d", app.config.AdminPort)
+	}
+
+	adminPort := port + 1000 // Default admin port offset
+	return fmt.Sprintf("%s:%d", host, adminPort)
+}
+
+// requestJoinCluster sends an ADD_VOTER command to the leader's admin interface.
+func (app *Application) requestJoinCluster(leaderAdminAddr, nodeID, nodeAddr string) error {
+	conn, err := net.DialTimeout("tcp", leaderAdminAddr, 10*time.Second)
+	if err != nil {
+		return fmt.Errorf("connecting to leader admin at %s: %w", leaderAdminAddr, err)
+	}
+	defer conn.Close()
+
+	command := fmt.Sprintf("ADD_VOTER %s %s", nodeID, nodeAddr)
+	if _, err := conn.Write([]byte(command)); err != nil {
+		return fmt.Errorf("sending ADD_VOTER command: %w", err)
+	}
+
+	// Read response
+	buffer := make([]byte, 1024)
+	n, err := conn.Read(buffer)
+	if err != nil {
+		return fmt.Errorf("reading response: %w", err)
+	}
+
+	response := strings.TrimSpace(string(buffer[:n]))
+	if response != "OK" {
+		return fmt.Errorf("join request failed: %s", response)
+	}
+
+	return nil
 }
 
 // monitorLeadership monitors Raft leadership changes and adjusts file watching.
@@ -351,10 +407,9 @@ func parseFlags() AppConfig {
 		cfg.DataDir = filepath.Join("data", cfg.NodeID)
 	}
 
-	// Auto-bootstrap if no join address and this is node1
-	if cfg.JoinAddr == "" && cfg.NodeID == "node1" {
-		cfg.BootstrapCluster = true
-	}
+	// Only bootstrap if explicitly requested
+	// This prevents multiple nodes from trying to bootstrap simultaneously
+	// The cluster manager should explicitly set -bootstrap for the first node
 
 	return cfg
 }
