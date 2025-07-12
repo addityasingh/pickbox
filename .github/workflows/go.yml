@@ -171,19 +171,12 @@ jobs:
         go test -bench=. -benchmem -run=^$ ./pkg/storage ./cmd/multi_replication > package-bench-results.txt
         cat package-bench-results.txt
 
-    - name: Run N-Node Benchmarks
-      run: |
-        cd test
-        go test -bench=. -benchmem -run=^$ . > n-node-bench-results.txt
-        cat n-node-bench-results.txt
-
     - name: Upload benchmark results
       uses: actions/upload-artifact@v4
       with:
         name: benchmark-results
         path: |
           package-bench-results.txt
-          test/n-node-bench-results.txt
 
   build:
     name: Build Binaries
