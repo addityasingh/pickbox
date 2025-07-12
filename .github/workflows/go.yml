@@ -244,8 +244,61 @@ jobs:
       with:
         go-version: '1.21'
 
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-1.21-${{ hashFiles('**/go.sum') }}
+
+    - name: Download dependencies
+      run: go mod download
+
     - name: Run go vet
       run: go vet ./...
+
+    - name: Install gosec
+      run: |
+        go install github.com/securego/gosec/v2/cmd/gosec@latest
+        gosec --version
+
+    - name: Run gosec security scan
+      run: |
+        # Run gosec with configuration file and multiple output formats
+        gosec -conf .gosec.json -fmt sarif -out gosec-results.sarif ./...
+        gosec -conf .gosec.json -fmt json -out gosec-results.json ./...
+        gosec -conf .gosec.json -fmt text -out gosec-results.txt ./...
+        
+        # Display results in CI log
+        echo "=== GOSEC SECURITY SCAN RESULTS ==="
+        gosec -conf .gosec.json ./...
+        
+        # Check if any HIGH or MEDIUM severity issues found
+        if gosec -conf .gosec.json -fmt json ./... | jq -r '.Issues[]? | select(.severity == "HIGH" or .severity == "MEDIUM") | .severity' | grep -q "HIGH\|MEDIUM"; then
+          echo "WARNING: HIGH or MEDIUM severity security issues found!"
+          echo "Please review the gosec results."
+        else
+          echo "✅ No HIGH or MEDIUM severity security issues found"
+        fi
+      continue-on-error: true
+
+    - name: Upload gosec SARIF results
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: gosec-results.sarif
+        category: gosec
+      continue-on-error: true
+
+    - name: Upload gosec security artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: gosec-security-results
+        path: |
+          gosec-results.sarif
+          gosec-results.json
+          gosec-results.txt
+      continue-on-error: true
 
   # Coverage aggregation job
   coverage:
@@ -359,7 +412,7 @@ jobs:
   test-reports:
     name: Test Reports
     runs-on: ubuntu-latest
-    needs: [unit-tests, n-node-tests, benchmark-tests]
+    needs: [unit-tests, n-node-tests, benchmark-tests, security]
     
     steps:
     - name: Checkout code
@@ -371,6 +424,12 @@ jobs:
         pattern: "*test*"
         merge-multiple: true
 
+    - name: Download security scan results
+      uses: actions/download-artifact@v4
+      with:
+        name: gosec-security-results
+      continue-on-error: true
+
     - name: Generate test report
       run: |
         echo "# Pickbox Test Report - $(date)" > test-report.md
@@ -378,9 +437,22 @@ jobs:
         echo "- Unit Tests: ✅ Completed" >> test-report.md
         echo "- N-Node Tests: ✅ Completed (3 categories)" >> test-report.md
         echo "- Benchmark Tests: ✅ Completed" >> test-report.md
+        echo "- Security Scan: ✅ Completed" >> test-report.md
         echo "" >> test-report.md
         echo "## Coverage Reports" >> test-report.md
         echo "Coverage reports available in artifacts" >> test-report.md
+        echo "" >> test-report.md
+        echo "## Security Scan Results" >> test-report.md
+        if [ -f "gosec-results.txt" ]; then
+          echo "### Gosec Security Scan" >> test-report.md
+          echo '```' >> test-report.md
+          head -50 gosec-results.txt >> test-report.md
+          echo '```' >> test-report.md
+          echo "" >> test-report.md
+          echo "Full security scan results available in artifacts" >> test-report.md
+        else
+          echo "Security scan results not available" >> test-report.md
+        fi
         echo "" >> test-report.md
         echo "## Benchmark Results" >> test-report.md
         if [ -f "package-bench-results.txt" ]; then
@@ -431,6 +503,12 @@ jobs:
       with:
         name: test-report
 
+    - name: Download security scan results
+      uses: actions/download-artifact@v4
+      with:
+        name: gosec-security-results
+      continue-on-error: true
+
     - name: Get version from git tag
       id: version
       run: |
@@ -448,6 +526,8 @@ jobs:
           bin/*
           coverage.html
           test-report.md
+          gosec-results.txt
+          gosec-results.json
         body: |
           ## Pickbox Distributed Storage System ${{ steps.version.outputs.version }}
           
@@ -462,7 +542,12 @@ jobs:
           - ✅ Unit Tests: All package tests passed
           - ✅ N-Node Tests: 3 test categories completed
           - ✅ Benchmark Tests: Performance benchmarks completed
-          - ✅ Security Scan: No critical issues found
+          - ✅ Security Scan: Gosec security analysis completed
+          
+          ### Security
+          - Static analysis with gosec (Go Security Checker)
+          - SARIF results uploaded to GitHub Security tab
+          - Comprehensive security scan results available in artifacts
           
           ### Downloads
           - **Linux AMD64**: `multi_replication-linux-amd64`
