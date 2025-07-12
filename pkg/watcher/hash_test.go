@@ -35,18 +35,18 @@ func TestHashContent(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := HashContent(tt.data)
-			
+
 			// Verify it's a valid hex string
 			_, err := hex.DecodeString(result)
 			assert.NoError(t, err, "Hash should be valid hex")
-			
+
 			// Verify it's the correct length for SHA-256 (64 hex characters)
 			assert.Equal(t, 64, len(result), "SHA-256 hash should be 64 characters")
-			
+
 			// Verify consistency - same input should produce same hash
 			result2 := HashContent(tt.data)
 			assert.Equal(t, result, result2, "Hash should be consistent")
-			
+
 			// For empty content, verify exact hash
 			if tt.name == "empty_content" {
 				hasher := sha256.New()
@@ -71,12 +71,12 @@ func TestHashContent_Uniqueness(t *testing.T) {
 		[]byte("ab"),
 		[]byte("abc"),
 	}
-	
+
 	hashes := make(map[string][]byte)
-	
+
 	for _, data := range testCases {
 		hash := HashContent(data)
-		
+
 		// Check if we've seen this hash before
 		if existingData, exists := hashes[hash]; exists {
 			// Only fail if the data is actually different (collision)
@@ -85,7 +85,7 @@ func TestHashContent_Uniqueness(t *testing.T) {
 			hashes[hash] = data
 		}
 	}
-	
+
 	// We should have unique hashes for different content
 	assert.Equal(t, len(testCases), len(hashes), "All different content should have unique hashes")
 }
@@ -93,13 +93,13 @@ func TestHashContent_Uniqueness(t *testing.T) {
 // Test hash stability across multiple calls
 func TestHashContent_Stability(t *testing.T) {
 	testData := []byte("stable test content")
-	
+
 	// Generate hash multiple times
 	hashes := make([]string, 100)
 	for i := 0; i < 100; i++ {
 		hashes[i] = HashContent(testData)
 	}
-	
+
 	// All hashes should be identical
 	firstHash := hashes[0]
 	for i, hash := range hashes {
@@ -114,15 +114,15 @@ func TestHashContent_LargeContent(t *testing.T) {
 	for i := range largeData {
 		largeData[i] = byte(i % 256)
 	}
-	
+
 	hash := HashContent(largeData)
-	
+
 	// Verify it's a valid hash
 	assert.Equal(t, 64, len(hash), "Large content hash should be 64 characters")
-	
+
 	_, err := hex.DecodeString(hash)
 	assert.NoError(t, err, "Large content hash should be valid hex")
-	
+
 	// Verify consistency
 	hash2 := HashContent(largeData)
 	assert.Equal(t, hash, hash2, "Large content hash should be consistent")
@@ -131,7 +131,7 @@ func TestHashContent_LargeContent(t *testing.T) {
 // Benchmark hashing performance
 func BenchmarkHashContent_Small(b *testing.B) {
 	data := []byte("small test content")
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		HashContent(data)
@@ -144,7 +144,7 @@ func BenchmarkHashContent_Medium(b *testing.B) {
 	for i := range data {
 		data[i] = byte(i % 256)
 	}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		HashContent(data)
@@ -157,7 +157,7 @@ func BenchmarkHashContent_Large(b *testing.B) {
 	for i := range data {
 		data[i] = byte(i % 256)
 	}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		HashContent(data)

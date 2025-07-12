@@ -43,7 +43,7 @@ func TestFullSystemIntegration_WithMonitoring(t *testing.T) {
 	for _, endpoint := range testEndpoints {
 		t.Run(fmt.Sprintf("endpoint_%s", endpoint.name), func(t *testing.T) {
 			url := fmt.Sprintf("http://localhost:%d%s", endpoint.port, endpoint.endpoint)
-			
+
 			// Try to connect (may fail if services aren't running, which is OK for unit tests)
 			resp, err := http.Get(url)
 			if err != nil {
@@ -87,7 +87,7 @@ func TestAdminIntegration(t *testing.T) {
 			// This would test actual admin commands if service is running
 			// For unit tests, we just verify the command format
 			assert.NotEmpty(t, cmd.command)
-			
+
 			if cmd.name == "forward_command" {
 				// Verify JSON is valid
 				jsonStart := cmd.command[8:] // Remove "FORWARD "
@@ -118,36 +118,36 @@ func TestFileReplicationWorkflow(t *testing.T) {
 		size    int
 	}{
 		{"small.txt", "small file content", 18},
-		{"medium.txt", string(make([]byte, 1024)), 1024}, // 1KB
+		{"medium.txt", string(make([]byte, 1024)), 1024},        // 1KB
 		{"large.txt", string(make([]byte, 10*1024)), 10 * 1024}, // 10KB
 	}
 
 	for _, file := range testFiles {
 		t.Run(fmt.Sprintf("file_%s", file.name), func(t *testing.T) {
 			filePath := filepath.Join(watchDir, file.name)
-			
+
 			// Create file
 			err := os.WriteFile(filePath, []byte(file.content), 0644)
 			require.NoError(t, err)
-			
+
 			// Verify file was created
 			assert.FileExists(t, filePath)
-			
+
 			// Verify file size
 			info, err := os.Stat(filePath)
 			require.NoError(t, err)
 			assert.Equal(t, int64(file.size), info.Size())
-			
+
 			// Simulate file modification
 			modifiedContent := file.content + " modified"
 			err = os.WriteFile(filePath, []byte(modifiedContent), 0644)
 			require.NoError(t, err)
-			
+
 			// Verify modification
 			content, err := os.ReadFile(filePath)
 			require.NoError(t, err)
 			assert.Equal(t, modifiedContent, string(content))
-			
+
 			// Simulate file deletion
 			err = os.Remove(filePath)
 			require.NoError(t, err)
@@ -175,18 +175,18 @@ func TestConcurrentFileOperations(t *testing.T) {
 	for i := 0; i < numFiles; i++ {
 		go func(id int) {
 			defer func() { done <- true }()
-			
+
 			fileName := fmt.Sprintf("concurrent_%d.txt", id)
 			filePath := filepath.Join(watchDir, fileName)
 			content := fmt.Sprintf("Content for file %d", id)
-			
+
 			// Create file
 			err := os.WriteFile(filePath, []byte(content), 0644)
 			assert.NoError(t, err)
-			
+
 			// Brief delay
 			time.Sleep(10 * time.Millisecond)
-			
+
 			// Modify file
 			modifiedContent := content + " modified"
 			err = os.WriteFile(filePath, []byte(modifiedContent), 0644)
@@ -208,9 +208,9 @@ func TestConcurrentFileOperations(t *testing.T) {
 	for i := 0; i < numFiles; i++ {
 		fileName := fmt.Sprintf("concurrent_%d.txt", i)
 		filePath := filepath.Join(watchDir, fileName)
-		
+
 		assert.FileExists(t, filePath)
-		
+
 		content, err := os.ReadFile(filePath)
 		require.NoError(t, err)
 		expectedContent := fmt.Sprintf("Content for file %d modified", i)
@@ -302,7 +302,7 @@ func BenchmarkIntegrationOperations(b *testing.B) {
 			fileName := fmt.Sprintf("bench_%d.txt", i)
 			filePath := filepath.Join(watchDir, fileName)
 			content := fmt.Sprintf("Benchmark content %d", i)
-			
+
 			err := os.WriteFile(filePath, []byte(content), 0644)
 			if err != nil {
 				b.Fatal(err)
