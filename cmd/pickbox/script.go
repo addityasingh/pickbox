@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 	"time"
 
@@ -124,15 +123,17 @@ func startNodeInBackground(nodeID string, port, adminPort int, joinAddr string, 
 		args = append(args, "--join", joinAddr)
 	}
 
-	// Get the current executable path
-	executable, err := os.Executable()
-	if err != nil {
-		return fmt.Errorf("getting executable path: %w", err)
+	// Use hardcoded binary path for security
+	executable := "./bin/pickbox"
+
+	// Validate that the binary exists
+	if _, err := os.Stat(executable); os.IsNotExist(err) {
+		return fmt.Errorf("pickbox binary not found at %s - please run 'make build' first", executable)
 	}
 
 	// Start the command in background
 	cmd := exec.Command(executable, args...)
-	cmd.Dir = filepath.Dir(executable)
+	cmd.Dir = "." // Set working directory to project root
 
 	// Start the process
 	if err := cmd.Start(); err != nil {

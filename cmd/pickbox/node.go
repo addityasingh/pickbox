@@ -137,7 +137,7 @@ func runNodeMulti(cmd *cobra.Command, args []string) error {
 
 	// Setup data directory
 	nodeDataDir := filepath.Join(dataDir, liveNodeID)
-	if err := os.MkdirAll(nodeDataDir, 0755); err != nil {
+	if err := os.MkdirAll(nodeDataDir, 0750); err != nil {
 		return fmt.Errorf("creating data directory: %w", err)
 	}
 
@@ -213,7 +213,7 @@ func NewApplication(cfg AppConfig) (*Application, error) {
 	})
 
 	// Create data directory
-	if err := os.MkdirAll(cfg.DataDir, 0755); err != nil {
+	if err := os.MkdirAll(cfg.DataDir, 0750); err != nil {
 		return nil, fmt.Errorf("creating data directory: %w", err)
 	}
 
