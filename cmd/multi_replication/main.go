@@ -16,10 +16,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/aditya/pickbox/pkg/admin"
-	"github.com/aditya/pickbox/pkg/monitoring"
-	"github.com/aditya/pickbox/pkg/storage"
-	"github.com/aditya/pickbox/pkg/watcher"
+	"github.com/addityasingh/pickbox/pkg/admin"
+	"github.com/addityasingh/pickbox/pkg/monitoring"
+	"github.com/addityasingh/pickbox/pkg/storage"
+	"github.com/addityasingh/pickbox/pkg/watcher"
 	"github.com/hashicorp/raft"
 	"github.com/sirupsen/logrus"
 )

@@ -29,7 +29,7 @@ linters-settings:
     min-occurrences: 2
     
   goimports:
-    local-prefixes: github.com/aditya/pickbox
+    local-prefixes: github.com/addityasingh/pickbox
     
   unused:
     check-exported: true
