@@ -9,15 +9,9 @@ help: ## Show this help message
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-15s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 # Build targets
-.PHONY: build build-all clean install
+.PHONY: build clean install
 build: ## Build the main pickbox CLI binary
 	go build -v -o bin/pickbox ./cmd/pickbox
-
-build-all: ## Build all binaries including legacy ones
-	mkdir -p bin
-	go build -v -o bin/pickbox ./cmd/pickbox
-	go build -v -o bin/live_replication ./cmd/live_replication
-	go build -v -o bin/multi_replication ./cmd/multi_replication
 
 install: build ## Install pickbox CLI to $GOPATH/bin
 	cp bin/pickbox $(GOPATH)/bin/pickbox
@@ -29,8 +23,6 @@ clean: ## Clean build artifacts and test data
 	rm -rf /tmp/test-*
 	rm -f coverage.out coverage.html
 	pkill -f pickbox || true
-	pkill -f multi_replication || true
-	pkill -f live_replication || true
 
 # Development setup
 .PHONY: setup install-tools install-pre-commit
@@ -177,7 +169,7 @@ ci: ## Simulate CI pipeline locally
 	$(MAKE) lint
 	$(MAKE) security
 	$(MAKE) test-coverage
-	$(MAKE) build-all
+	$(MAKE) build
 	@echo "✅ CI simulation completed successfully!"
 
 pre-commit: ## Run pre-commit hooks manually

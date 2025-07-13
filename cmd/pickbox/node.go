@@ -175,6 +175,9 @@ func validateConfig(cfg AppConfig) error {
 	if cfg.MonitorPort <= 0 {
 		return errors.New("monitor port must be positive")
 	}
+	if cfg.DashboardPort <= 0 {
+		return errors.New("dashboard port must be positive")
+	}
 	return nil
 }
 
@@ -300,14 +303,23 @@ type raftWrapper struct {
 }
 
 func (rw *raftWrapper) Apply(data []byte, timeout time.Duration) raft.ApplyFuture {
+	if rw.rm == nil {
+		return nil
+	}
 	return rw.rm.GetRaft().Apply(data, timeout)
 }
 
 func (rw *raftWrapper) State() raft.RaftState {
+	if rw.rm == nil {
+		return raft.Shutdown
+	}
 	return rw.rm.State()
 }
 
 func (rw *raftWrapper) Leader() raft.ServerAddress {
+	if rw.rm == nil {
+		return ""
+	}
 	return rw.rm.Leader()
 }
 
@@ -413,12 +425,12 @@ func (app *Application) handleClusterMembership() {
 func (app *Application) deriveAdminAddress(raftAddr string) string {
 	parts := strings.Split(raftAddr, ":")
 	if len(parts) != 2 {
-		return ""
+		return "127.0.0.1:9001" // Fallback to default admin port
 	}
 
 	raftPort, err := strconv.Atoi(parts[1])
 	if err != nil {
-		return ""
+		return "127.0.0.1:9001" // Fallback to default admin port
 	}
 
 	// Assume admin port is raftPort + 1000

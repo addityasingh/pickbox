@@ -37,7 +37,8 @@ VERBOSE=false
 QUICK_DEMO=false
 INTERACTIVE=false
 CLEANUP_FIRST=false
-BINARY="cmd/multi_replication/main.go"
+BINARY="./bin/pickbox"
+BINARY_ARGS="node multi"
 
 show_help() {
     echo "Usage: $0 [OPTIONS]"

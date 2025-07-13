@@ -13,7 +13,7 @@ DEFAULT_MONITOR_BASE_PORT=6001
 DEFAULT_DASHBOARD_PORT=8080
 DEFAULT_HOST="127.0.0.1"
 DEFAULT_DATA_DIR="data"
-DEFAULT_BINARY="cmd/multi_replication/main.go"
+DEFAULT_BINARY="./bin/pickbox"
 
 # Colors for output
 RED='\033[0;31m'
@@ -84,7 +84,8 @@ CONFIGURATION FILE FORMAT (cluster.conf):
     DASHBOARD_PORT=8080
     HOST=127.0.0.1
     DATA_DIR=data
-    BINARY=cmd/multi_replication/main.go
+    BINARY=./bin/pickbox
+BINARY_ARGS="node multi"
 
 EOF
 }
@@ -146,10 +147,7 @@ cleanup_cluster() {
     
     # Kill processes
     local process_patterns=(
-        "multi_replication"
-        "cmd/multi_replication"
-        "live_replication"
-        "cmd/live_replication"
+        "pickbox"
     )
     
     for pattern in "${process_patterns[@]}"; do

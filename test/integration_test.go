@@ -54,11 +54,11 @@ func cleanupTestEnvironment() {
 // startNode starts a multi-replication node in the background
 func startNode(t *testing.T, nodeID string, dataDir string, raftPort, adminPort int) *exec.Cmd {
 	cmd := exec.Command(
-		"go", "run", "../cmd/multi_replication/main.go",
-		"-node", nodeID,
-		"-dir", dataDir,
-		"-port", fmt.Sprintf("%d", raftPort),
-		"-admin", fmt.Sprintf("%d", adminPort),
+		"../bin/pickbox", "node", "multi",
+		"--node-id", nodeID,
+		"--data-dir", dataDir,
+		"--port", fmt.Sprintf("%d", raftPort),
+		"--admin-port", fmt.Sprintf("%d", adminPort),
 	)
 
 	// Set up logging for debugging
