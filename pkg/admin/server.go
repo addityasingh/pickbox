@@ -12,6 +12,13 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// RaftInterface defines the interface for Raft operations needed by the admin server
+type RaftInterface interface {
+	State() raft.RaftState
+	AddVoter(id raft.ServerID, address raft.ServerAddress, prevIndex uint64, timeout time.Duration) raft.IndexFuture
+	Apply(cmd []byte, timeout time.Duration) raft.ApplyFuture
+}
+
 const (
 	// Admin commands
 	AddVoterCmd = "ADD_VOTER"
@@ -33,13 +40,13 @@ type Command struct {
 
 // Server provides administrative interfaces for cluster management.
 type Server struct {
-	raft   *raft.Raft
+	raft   RaftInterface
 	logger *logrus.Logger
 	port   int
 }
 
 // NewServer creates a new admin server instance.
-func NewServer(raftNode *raft.Raft, port int, logger *logrus.Logger) *Server {
+func NewServer(raftNode RaftInterface, port int, logger *logrus.Logger) *Server {
 	if logger == nil {
 		logger = logrus.New()
 	}
