@@ -13,6 +13,16 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// RaftInterface defines the interface for Raft operations needed by the monitor
+type RaftInterface interface {
+	State() raft.RaftState
+	Leader() raft.ServerAddress
+	LastIndex() uint64
+	CommitIndex() uint64
+	AppliedIndex() uint64
+	GetConfiguration() raft.ConfigurationFuture
+}
+
 // Metrics tracks various operational metrics for the storage system.
 type Metrics struct {
 	// File operation counters
@@ -63,7 +73,7 @@ type NodeMetrics struct {
 // Monitor provides monitoring capabilities for the distributed storage system.
 type Monitor struct {
 	metrics *Metrics
-	raft    *raft.Raft
+	raft    RaftInterface
 	logger  *logrus.Logger
 }
 
@@ -81,7 +91,7 @@ func NewMetrics(nodeID string, logger *logrus.Logger) *Metrics {
 }
 
 // NewMonitor creates a new monitoring instance.
-func NewMonitor(nodeID string, raftNode *raft.Raft, logger *logrus.Logger) *Monitor {
+func NewMonitor(nodeID string, raftNode RaftInterface, logger *logrus.Logger) *Monitor {
 	return &Monitor{
 		metrics: NewMetrics(nodeID, logger),
 		raft:    raftNode,

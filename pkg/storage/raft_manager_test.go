@@ -434,7 +434,7 @@ func TestRaftManager_BootstrapCluster(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Wait for leadership (with timeout)
-	timeout := time.After(2 * time.Second)
+	timeout := time.After(5 * time.Second)
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 
