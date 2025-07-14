@@ -180,9 +180,9 @@ func TestClusterStatusCommandFlags(t *testing.T) {
 func TestRunClusterJoinWithoutServer(t *testing.T) {
 	// Test cluster join when no server is running
 	// Set the global variables
-	leaderAddr = "127.0.0.1:8001"
+	leaderAddr = "127.0.0.1:8501"
 	joinNodeID = "test-node"
-	joinNodeAddr = "127.0.0.1:8002"
+	joinNodeAddr = "127.0.0.1:8502"
 
 	cmd := &cobra.Command{Use: "test"}
 	err := runClusterJoin(cmd, []string{})
