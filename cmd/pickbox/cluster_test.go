@@ -179,10 +179,22 @@ func TestClusterStatusCommandFlags(t *testing.T) {
 
 func TestRunClusterJoinWithoutServer(t *testing.T) {
 	// Test cluster join when no server is running
-	// Set the global variables
-	leaderAddr = "127.0.0.1:8501"
+	// Save original global variables to restore after test
+	originalLeaderAddr := leaderAddr
+	originalJoinNodeID := joinNodeID
+	originalJoinNodeAddr := joinNodeAddr
+
+	// Ensure cleanup even if test panics
+	defer func() {
+		leaderAddr = originalLeaderAddr
+		joinNodeID = originalJoinNodeID
+		joinNodeAddr = originalJoinNodeAddr
+	}()
+
+	// Set the global variables for this test
+	leaderAddr = "127.0.0.1:8001"
 	joinNodeID = "test-node"
-	joinNodeAddr = "127.0.0.1:8502"
+	joinNodeAddr = "127.0.0.1:8002"
 
 	cmd := &cobra.Command{Use: "test"}
 	err := runClusterJoin(cmd, []string{})
@@ -193,6 +205,14 @@ func TestRunClusterJoinWithoutServer(t *testing.T) {
 
 func TestRunClusterStatusWithoutServer(t *testing.T) {
 	// Test cluster status when no server is running
+	// Save original global variable to restore after test
+	originalStatusAddr := statusAddr
+
+	// Ensure cleanup even if test panics
+	defer func() {
+		statusAddr = originalStatusAddr
+	}()
+
 	statusAddr = "127.0.0.1:9999" // Use an unused port
 
 	cmd := &cobra.Command{Use: "test"}

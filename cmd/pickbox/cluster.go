@@ -59,6 +59,17 @@ func init() {
 }
 
 func runClusterJoin(cmd *cobra.Command, args []string) error {
+	// Validate required global variables are set
+	if leaderAddr == "" {
+		return fmt.Errorf("leader address is required")
+	}
+	if joinNodeID == "" {
+		return fmt.Errorf("node ID is required")
+	}
+	if joinNodeAddr == "" {
+		return fmt.Errorf("node address is required")
+	}
+
 	// Derive admin address from leader address
 	adminAddr := deriveAdminAddr(leaderAddr)
 
@@ -93,6 +104,11 @@ func runClusterJoin(cmd *cobra.Command, args []string) error {
 }
 
 func runClusterStatus(cmd *cobra.Command, args []string) error {
+	// Validate required global variable is set
+	if statusAddr == "" {
+		return fmt.Errorf("status address is required")
+	}
+
 	// This is a simple implementation - in a real system you'd query more cluster info
 	conn, err := net.DialTimeout("tcp", statusAddr, 2*time.Second)
 	if err != nil {
