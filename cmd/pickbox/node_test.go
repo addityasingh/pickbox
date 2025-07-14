@@ -159,6 +159,10 @@ func TestNewApplication(t *testing.T) {
 
 // Test deriveAdminAddress function
 func TestDeriveAdminAddress(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
 	// Create a temporary application for testing
 	tempDir := t.TempDir()
 	config := AppConfig{
@@ -343,6 +347,10 @@ func TestApplicationIntegration(t *testing.T) {
 
 // Test edge cases and error handling
 func TestApplicationErrorHandling(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
 	t.Run("invalid data directory", func(t *testing.T) {
 		config := AppConfig{
 			DataDir:          "/invalid/path/that/does/not/exist/and/cannot/be/created",
@@ -386,6 +394,10 @@ func TestApplicationErrorHandling(t *testing.T) {
 
 // Test setupSignalHandling function
 func TestSetupSignalHandling(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
 	tempDir := t.TempDir()
 	config := AppConfig{
 		DataDir:          tempDir,
@@ -412,6 +424,10 @@ func TestSetupSignalHandling(t *testing.T) {
 
 // Test getRaftInstance function
 func TestGetRaftInstance(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
 	tempDir := t.TempDir()
 	config := AppConfig{
 		DataDir:          tempDir,
@@ -441,6 +457,10 @@ func TestGetRaftInstance(t *testing.T) {
 
 // Test Application methods
 func TestApplicationMethods(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
 	tempDir := t.TempDir()
 	config := AppConfig{
 		DataDir:          tempDir,

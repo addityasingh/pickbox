@@ -305,6 +305,10 @@ func TestDeriveMultiAdminAddress(t *testing.T) {
 
 // Test runMultiReplication function
 func TestRunMultiReplication(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
 	tempDir := t.TempDir()
 	logger := logrus.New()
 	logger.SetOutput(io.Discard) // Suppress logs during testing
@@ -528,6 +532,10 @@ func TestMultiApplicationIntegration(t *testing.T) {
 
 // Test edge cases and error handling
 func TestMultiApplicationErrorHandling(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
 	t.Run("invalid data directory", func(t *testing.T) {
 		config := MultiConfig{
 			DataDir:          "/invalid/path/that/does/not/exist/and/cannot/be/created",
