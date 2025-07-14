@@ -38,4 +38,4 @@ config.json
 ehthumbs.db
 Thumbs.db
 
-pickbox
+./pickbox

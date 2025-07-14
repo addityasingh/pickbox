@@ -47,7 +47,7 @@ func init() {
 	clusterCmd.AddCommand(clusterStatusCmd)
 
 	// Cluster join command flags
-	clusterJoinCmd.Flags().StringVarP(&leaderAddr, "leader", "l", "", "Leader address (required)")
+	clusterJoinCmd.Flags().StringVarP(&leaderAddr, "leader", "L", "", "Leader address (required)")
 	clusterJoinCmd.Flags().StringVarP(&joinNodeID, "node-id", "n", "", "Node ID to join (required)")
 	clusterJoinCmd.Flags().StringVarP(&joinNodeAddr, "node-addr", "a", "", "Node address (required)")
 	clusterJoinCmd.MarkFlagRequired("leader")
