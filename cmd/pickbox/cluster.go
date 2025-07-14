@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -28,6 +29,9 @@ var clusterStatusCmd = &cobra.Command{
 	Long:  `Check the status of a Pickbox cluster`,
 	RunE:  runClusterStatus,
 }
+
+// Mutex to protect global variables from concurrent access
+var globalVarsMutex sync.RWMutex
 
 // Cluster join command flags
 var (
@@ -59,21 +63,33 @@ func init() {
 }
 
 func runClusterJoin(cmd *cobra.Command, args []string) error {
+	// Validate cmd parameter
+	if cmd == nil {
+		return fmt.Errorf("command is nil")
+	}
+
+	// Thread-safe access to global variables
+	globalVarsMutex.RLock()
+	leader := leaderAddr
+	nodeID := joinNodeID
+	nodeAddr := joinNodeAddr
+	globalVarsMutex.RUnlock()
+
 	// Validate required global variables are set
-	if leaderAddr == "" {
+	if leader == "" {
 		return fmt.Errorf("leader address is required")
 	}
-	if joinNodeID == "" {
+	if nodeID == "" {
 		return fmt.Errorf("node ID is required")
 	}
-	if joinNodeAddr == "" {
+	if nodeAddr == "" {
 		return fmt.Errorf("node address is required")
 	}
 
 	// Derive admin address from leader address
-	adminAddr := deriveAdminAddr(leaderAddr)
+	adminAddr := deriveAdminAddr(leader)
 
-	fmt.Printf("Attempting to join node %s (%s) to cluster via %s...\n", joinNodeID, joinNodeAddr, adminAddr)
+	fmt.Printf("Attempting to join node %s (%s) to cluster via %s...\n", nodeID, nodeAddr, adminAddr)
 
 	// Use the admin API to join the cluster
 	conn, err := net.DialTimeout("tcp", adminAddr, 5*time.Second)
@@ -82,7 +98,7 @@ func runClusterJoin(cmd *cobra.Command, args []string) error {
 	}
 	defer conn.Close()
 
-	message := fmt.Sprintf("ADD_VOTER %s %s", joinNodeID, joinNodeAddr)
+	message := fmt.Sprintf("ADD_VOTER %s %s", nodeID, nodeAddr)
 	if _, err := conn.Write([]byte(message)); err != nil {
 		return fmt.Errorf("sending join request: %w", err)
 	}
@@ -99,36 +115,54 @@ func runClusterJoin(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("join request failed: %s", response)
 	}
 
-	fmt.Printf("✅ Successfully joined node %s to cluster\n", joinNodeID)
+	fmt.Printf("✅ Successfully joined node %s to cluster\n", nodeID)
 	return nil
 }
 
 func runClusterStatus(cmd *cobra.Command, args []string) error {
+	// Validate cmd parameter
+	if cmd == nil {
+		return fmt.Errorf("command is nil")
+	}
+
+	// Thread-safe access to global variables
+	globalVarsMutex.RLock()
+	statusAddress := statusAddr
+	globalVarsMutex.RUnlock()
+
 	// Validate required global variable is set
-	if statusAddr == "" {
+	if statusAddress == "" {
 		return fmt.Errorf("status address is required")
 	}
 
 	// This is a simple implementation - in a real system you'd query more cluster info
-	conn, err := net.DialTimeout("tcp", statusAddr, 2*time.Second)
+	conn, err := net.DialTimeout("tcp", statusAddress, 2*time.Second)
 	if err != nil {
-		fmt.Printf("❌ Cannot connect to admin server at %s\n", statusAddr)
+		fmt.Printf("❌ Cannot connect to admin server at %s\n", statusAddress)
 		return fmt.Errorf("connecting to admin server: %w", err)
 	}
 	defer conn.Close()
 
-	fmt.Printf("✅ Admin server is reachable at %s\n", statusAddr)
+	fmt.Printf("✅ Admin server is reachable at %s\n", statusAddress)
 	fmt.Printf("🔍 For detailed cluster status, check the monitoring dashboard\n")
 	return nil
 }
 
 func deriveAdminAddr(raftAddr string) string {
+	// Handle empty or invalid input
+	if raftAddr == "" {
+		return "127.0.0.1:9001" // Default admin port
+	}
+
 	parts := strings.Split(raftAddr, ":")
-	if len(parts) != 2 {
+	if len(parts) != 2 || parts[0] == "" {
 		return "127.0.0.1:9001" // Default admin port
 	}
 
 	// Convert raft port to admin port (typically raft_port + 1000)
-	host := parts[0]
+	host := strings.TrimSpace(parts[0])
+	if host == "" {
+		host = "127.0.0.1"
+	}
 	return fmt.Sprintf("%s:9001", host) // Default admin port
 }

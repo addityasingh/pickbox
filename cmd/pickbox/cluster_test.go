@@ -179,24 +179,47 @@ func TestClusterStatusCommandFlags(t *testing.T) {
 
 func TestRunClusterJoinWithoutServer(t *testing.T) {
 	// Test cluster join when no server is running
-	// Save original global variables to restore after test
+	// Use t.Parallel() to ensure proper test isolation
+	t.Parallel()
+
+	// Thread-safe access to save original global variables
+	globalVarsMutex.Lock()
 	originalLeaderAddr := leaderAddr
 	originalJoinNodeID := joinNodeID
 	originalJoinNodeAddr := joinNodeAddr
 
+	// Set the global variables for this test with unique ports to avoid conflicts
+	leaderAddr = "127.0.0.1:18001"
+	joinNodeID = "test-node-join"
+	joinNodeAddr = "127.0.0.1:18002"
+	globalVarsMutex.Unlock()
+
 	// Ensure cleanup even if test panics
 	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("Test panicked: %v", r)
+		}
+		globalVarsMutex.Lock()
 		leaderAddr = originalLeaderAddr
 		joinNodeID = originalJoinNodeID
 		joinNodeAddr = originalJoinNodeAddr
+		globalVarsMutex.Unlock()
 	}()
 
-	// Set the global variables for this test
-	leaderAddr = "127.0.0.1:8001"
-	joinNodeID = "test-node"
-	joinNodeAddr = "127.0.0.1:8002"
+	// Validate that variables are properly set before calling function
+	globalVarsMutex.RLock()
+	currentLeaderAddr := leaderAddr
+	currentJoinNodeID := joinNodeID
+	currentJoinNodeAddr := joinNodeAddr
+	globalVarsMutex.RUnlock()
+
+	assert.NotEmpty(t, currentLeaderAddr, "leaderAddr should not be empty")
+	assert.NotEmpty(t, currentJoinNodeID, "joinNodeID should not be empty")
+	assert.NotEmpty(t, currentJoinNodeAddr, "joinNodeAddr should not be empty")
 
 	cmd := &cobra.Command{Use: "test"}
+	assert.NotNil(t, cmd, "cmd should not be nil")
+
 	err := runClusterJoin(cmd, []string{})
 
 	assert.Error(t, err, "should error when cannot connect to admin server")
@@ -205,17 +228,36 @@ func TestRunClusterJoinWithoutServer(t *testing.T) {
 
 func TestRunClusterStatusWithoutServer(t *testing.T) {
 	// Test cluster status when no server is running
-	// Save original global variable to restore after test
+	// Use t.Parallel() to ensure proper test isolation
+	t.Parallel()
+
+	// Thread-safe access to save original global variable
+	globalVarsMutex.Lock()
 	originalStatusAddr := statusAddr
+
+	statusAddr = "127.0.0.1:19999" // Use a unique unused port
+	globalVarsMutex.Unlock()
 
 	// Ensure cleanup even if test panics
 	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("Test panicked: %v", r)
+		}
+		globalVarsMutex.Lock()
 		statusAddr = originalStatusAddr
+		globalVarsMutex.Unlock()
 	}()
 
-	statusAddr = "127.0.0.1:9999" // Use an unused port
+	// Validate that variable is properly set before calling function
+	globalVarsMutex.RLock()
+	currentStatusAddr := statusAddr
+	globalVarsMutex.RUnlock()
+
+	assert.NotEmpty(t, currentStatusAddr, "statusAddr should not be empty")
 
 	cmd := &cobra.Command{Use: "test"}
+	assert.NotNil(t, cmd, "cmd should not be nil")
+
 	err := runClusterStatus(cmd, []string{})
 
 	assert.Error(t, err, "should error when cannot connect to admin server")
