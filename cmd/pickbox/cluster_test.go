@@ -449,52 +449,73 @@ func TestClusterCommandStructure(t *testing.T) {
 
 func TestGlobalVariables(t *testing.T) {
 	// Test that global variables exist and can be set
+	// Thread-safe access to save original global variables
+	globalVarsMutex.Lock()
 	originalLeader := leaderAddr
 	originalNodeID := joinNodeID
 	originalNodeAddr := joinNodeAddr
 	originalStatusAddr := statusAddr
-
-	defer func() {
-		leaderAddr = originalLeader
-		joinNodeID = originalNodeID
-		joinNodeAddr = originalNodeAddr
-		statusAddr = originalStatusAddr
-	}()
 
 	// Test setting variables
 	leaderAddr = "test-leader"
 	joinNodeID = "test-node-id"
 	joinNodeAddr = "test-node-addr"
 	statusAddr = "test-status-addr"
+	globalVarsMutex.Unlock()
 
+	defer func() {
+		globalVarsMutex.Lock()
+		leaderAddr = originalLeader
+		joinNodeID = originalNodeID
+		joinNodeAddr = originalNodeAddr
+		statusAddr = originalStatusAddr
+		globalVarsMutex.Unlock()
+	}()
+
+	// Verify variables are set correctly
+	globalVarsMutex.RLock()
 	assert.Equal(t, "test-leader", leaderAddr)
 	assert.Equal(t, "test-node-id", joinNodeID)
 	assert.Equal(t, "test-node-addr", joinNodeAddr)
 	assert.Equal(t, "test-status-addr", statusAddr)
+	globalVarsMutex.RUnlock()
 }
 
 func TestClusterJoinWithValidFlags(t *testing.T) {
 	// Test cluster join by verifying the function logic directly
-	// Set the global variables (simulating flag parsing)
+	// Use t.Parallel() to ensure proper test isolation
+	t.Parallel()
+
+	// Thread-safe access to save original global variables
+	globalVarsMutex.Lock()
 	originalLeader := leaderAddr
 	originalNodeID := joinNodeID
 	originalNodeAddr := joinNodeAddr
 
+	// Set the global variables (simulating flag parsing) with unique ports
+	leaderAddr = "127.0.0.1:28001"
+	joinNodeID = "test-node-valid"
+	joinNodeAddr = "127.0.0.1:28002"
+	globalVarsMutex.Unlock()
+
 	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("Test panicked: %v", r)
+		}
+		globalVarsMutex.Lock()
 		leaderAddr = originalLeader
 		joinNodeID = originalNodeID
 		joinNodeAddr = originalNodeAddr
+		globalVarsMutex.Unlock()
 	}()
 
-	leaderAddr = "127.0.0.1:8001"
-	joinNodeID = "test-node"
-	joinNodeAddr = "127.0.0.1:8002"
-
 	cmd := &cobra.Command{Use: "test"}
+	assert.NotNil(t, cmd, "cmd should not be nil")
+
 	err := runClusterJoin(cmd, []string{})
 
 	// Should fail at connection attempt, not flag validation
-	assert.Error(t, err)
+	assert.Error(t, err, "should error when cannot connect to admin server")
 	assert.Contains(t, err.Error(), "connecting to admin server")
 }
 
