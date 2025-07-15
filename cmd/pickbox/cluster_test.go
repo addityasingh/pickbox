@@ -222,7 +222,6 @@ func TestRunClusterJoinWithoutServer(t *testing.T) {
 
 	err := runClusterJoin(cmd, []string{})
 
-	assert.Error(t, err, "should error when cannot connect to admin server")
 	assert.Contains(t, err.Error(), "connecting to admin server")
 }
 
@@ -260,7 +259,6 @@ func TestRunClusterStatusWithoutServer(t *testing.T) {
 
 	err := runClusterStatus(cmd, []string{})
 
-	assert.Error(t, err, "should error when cannot connect to admin server")
 	assert.Contains(t, err.Error(), "connecting to admin server")
 }
 
