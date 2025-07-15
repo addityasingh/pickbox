@@ -178,6 +178,10 @@ func TestClusterStatusCommandFlags(t *testing.T) {
 }
 
 func TestRunClusterJoinWithoutServer(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping test in short mode")
+	}
+
 	// Test cluster join when no server is running
 	// Use t.Parallel() to ensure proper test isolation
 	t.Parallel()
@@ -226,6 +230,10 @@ func TestRunClusterJoinWithoutServer(t *testing.T) {
 }
 
 func TestRunClusterStatusWithoutServer(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping test in short mode")
+	}
+
 	// Test cluster status when no server is running
 	// Use t.Parallel() to ensure proper test isolation
 	t.Parallel()
@@ -480,6 +488,10 @@ func TestGlobalVariables(t *testing.T) {
 }
 
 func TestClusterJoinWithValidFlags(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping test in short mode")
+	}
+
 	// Test cluster join by verifying the function logic directly
 	// Use t.Parallel() to ensure proper test isolation
 	t.Parallel()
