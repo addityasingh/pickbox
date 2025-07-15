@@ -198,3 +198,31 @@ func sendForwardCommand(adminAddr string, cmd Command) error {
 
 	return nil
 }
+
+// RequestJoinCluster requests to join a cluster via the admin API
+func RequestJoinCluster(adminAddr, nodeID, nodeAddr string) error {
+	conn, err := net.DialTimeout("tcp", adminAddr, 5*time.Second)
+	if err != nil {
+		return fmt.Errorf("connecting to admin server: %w", err)
+	}
+	defer conn.Close()
+
+	message := fmt.Sprintf("ADD_VOTER %s %s", nodeID, nodeAddr)
+	if _, err := conn.Write([]byte(message)); err != nil {
+		return fmt.Errorf("sending join request: %w", err)
+	}
+
+	// Read response
+	buffer := make([]byte, 1024)
+	n, err := conn.Read(buffer)
+	if err != nil {
+		return fmt.Errorf("reading response: %w", err)
+	}
+
+	response := strings.TrimSpace(string(buffer[:n]))
+	if response != "OK" {
+		return fmt.Errorf("join request failed: %s", response)
+	}
+
+	return nil
+}

@@ -1,31 +1,25 @@
-// Package main implements a multi-directional distributed file replication system.
-// This version uses modular components for better maintainability and testing.
 package main
 
 import (
 	"errors"
-	"flag"
 	"fmt"
-	"log"
 	"net"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
-	"github.com/aditya/pickbox/pkg/admin"
-	"github.com/aditya/pickbox/pkg/monitoring"
-	"github.com/aditya/pickbox/pkg/storage"
-	"github.com/aditya/pickbox/pkg/watcher"
+	"github.com/addityasingh/pickbox/pkg/admin"
+	"github.com/addityasingh/pickbox/pkg/monitoring"
+	"github.com/addityasingh/pickbox/pkg/storage"
+	"github.com/addityasingh/pickbox/pkg/watcher"
 	"github.com/hashicorp/raft"
 	"github.com/sirupsen/logrus"
 )
 
-// Config holds all configuration for the application.
-type AppConfig struct {
+// MultiConfig holds configuration for multi-directional replication
+type MultiConfig struct {
 	NodeID           string
 	Port             int
 	AdminPort        int
@@ -37,8 +31,8 @@ type AppConfig struct {
 	BootstrapCluster bool
 }
 
-// validateConfig validates the application configuration.
-func validateConfig(cfg AppConfig) error {
+// validateMultiConfig validates the multi-directional replication configuration.
+func validateMultiConfig(cfg MultiConfig) error {
 	if cfg.DataDir == "" {
 		return errors.New("data directory cannot be empty")
 	}
@@ -54,12 +48,15 @@ func validateConfig(cfg AppConfig) error {
 	if cfg.MonitorPort <= 0 {
 		return errors.New("monitor port must be positive")
 	}
+	if cfg.DashboardPort <= 0 {
+		return errors.New("dashboard port must be positive")
+	}
 	return nil
 }
 
-// Application represents the main application with all components.
-type Application struct {
-	config       AppConfig
+// MultiApplication represents the multi-directional replication application
+type MultiApplication struct {
+	config       MultiConfig
 	logger       *logrus.Logger
 	raftManager  *storage.RaftManager
 	stateManager *watcher.DefaultStateManager
@@ -69,10 +66,10 @@ type Application struct {
 	dashboard    *monitoring.Dashboard
 }
 
-// NewApplication creates a new application instance with all components.
-func NewApplication(cfg AppConfig) (*Application, error) {
+// NewMultiApplication creates a new multi-directional replication application instance
+func NewMultiApplication(cfg MultiConfig) (*MultiApplication, error) {
 	// Validate configuration
-	if err := validateConfig(cfg); err != nil {
+	if err := validateMultiConfig(cfg); err != nil {
 		return nil, fmt.Errorf("invalid configuration: %w", err)
 	}
 
@@ -89,11 +86,11 @@ func NewApplication(cfg AppConfig) (*Application, error) {
 	})
 
 	// Create data directory
-	if err := os.MkdirAll(cfg.DataDir, 0755); err != nil {
+	if err := os.MkdirAll(cfg.DataDir, 0750); err != nil {
 		return nil, fmt.Errorf("creating data directory: %w", err)
 	}
 
-	app := &Application{
+	app := &MultiApplication{
 		config: cfg,
 		logger: logger,
 	}
@@ -107,7 +104,7 @@ func NewApplication(cfg AppConfig) (*Application, error) {
 }
 
 // initializeComponents sets up all application components.
-func (app *Application) initializeComponents() error {
+func (app *MultiApplication) initializeComponents() error {
 	var err error
 
 	// Initialize Raft manager
@@ -125,7 +122,6 @@ func (app *Application) initializeComponents() error {
 	app.stateManager = watcher.NewDefaultStateManager()
 
 	// Access the raft instance through the manager for admin server
-	// We'll need to add a getter method to RaftManager
 	raftInstance := app.getRaftInstance()
 
 	// Initialize admin server
@@ -145,7 +141,7 @@ func (app *Application) initializeComponents() error {
 	// Initialize dashboard
 	app.dashboard = monitoring.NewDashboard(app.monitor, app.logger)
 
-	// Initialize file watcher with simplified approach
+	// Initialize file watcher
 	watcherConfig := watcher.Config{
 		DataDir:      app.config.DataDir,
 		NodeID:       app.config.NodeID,
@@ -155,9 +151,9 @@ func (app *Application) initializeComponents() error {
 
 	app.fileWatcher, err = watcher.NewFileWatcher(
 		watcherConfig,
-		&raftWrapper{app.raftManager},
+		&multiRaftWrapper{app.raftManager},
 		app.stateManager,
-		&forwarderWrapper{},
+		&multiForwarderWrapper{app.logger},
 	)
 	if err != nil {
 		return fmt.Errorf("creating file watcher: %w", err)
@@ -167,35 +163,45 @@ func (app *Application) initializeComponents() error {
 }
 
 // getRaftInstance provides access to the underlying raft instance
-func (app *Application) getRaftInstance() *raft.Raft {
+func (app *MultiApplication) getRaftInstance() *raft.Raft {
 	if app.raftManager == nil {
 		return nil
 	}
 	return app.raftManager.GetRaft()
 }
 
-// raftWrapper adapts RaftManager to the watcher.RaftApplier interface.
-type raftWrapper struct {
+// multiRaftWrapper adapts RaftManager to the watcher.RaftApplier interface.
+type multiRaftWrapper struct {
 	rm *storage.RaftManager
 }
 
-func (rw *raftWrapper) Apply(data []byte, timeout time.Duration) raft.ApplyFuture {
-	// Apply the command directly through the Raft instance
+func (rw *multiRaftWrapper) Apply(data []byte, timeout time.Duration) raft.ApplyFuture {
+	if rw.rm == nil {
+		return nil
+	}
 	return rw.rm.GetRaft().Apply(data, timeout)
 }
 
-func (rw *raftWrapper) State() raft.RaftState {
+func (rw *multiRaftWrapper) State() raft.RaftState {
+	if rw.rm == nil {
+		return raft.Shutdown
+	}
 	return rw.rm.State()
 }
 
-func (rw *raftWrapper) Leader() raft.ServerAddress {
+func (rw *multiRaftWrapper) Leader() raft.ServerAddress {
+	if rw.rm == nil {
+		return ""
+	}
 	return rw.rm.Leader()
 }
 
-// forwarderWrapper implements the watcher.LeaderForwarder interface.
-type forwarderWrapper struct{}
+// multiForwarderWrapper implements the watcher.LeaderForwarder interface.
+type multiForwarderWrapper struct {
+	logger *logrus.Logger
+}
 
-func (fw *forwarderWrapper) ForwardToLeader(leaderAddr string, cmd watcher.Command) error {
+func (fw *multiForwarderWrapper) ForwardToLeader(leaderAddr string, cmd watcher.Command) error {
 	adminCmd := admin.Command{
 		Op:       cmd.Op,
 		Path:     cmd.Path,
@@ -204,12 +210,25 @@ func (fw *forwarderWrapper) ForwardToLeader(leaderAddr string, cmd watcher.Comma
 		NodeID:   cmd.NodeID,
 		Sequence: cmd.Sequence,
 	}
-	return admin.ForwardToLeader(leaderAddr, adminCmd)
+
+	// Convert raft address to admin address
+	adminAddr := deriveMultiAdminAddress(leaderAddr)
+
+	if fw.logger != nil {
+		fw.logger.WithFields(logrus.Fields{
+			"leader_addr": leaderAddr,
+			"admin_addr":  adminAddr,
+			"operation":   cmd.Op,
+			"path":        cmd.Path,
+		}).Debug("Forwarding command to leader")
+	}
+
+	return admin.ForwardToLeader(adminAddr, adminCmd)
 }
 
 // Start starts all application components.
-func (app *Application) Start() error {
-	app.logger.Infof("🚀 Starting Pickbox node %s", app.config.NodeID)
+func (app *MultiApplication) Start() error {
+	app.logger.Infof("🚀 Starting Pickbox multi-directional replication node %s", app.config.NodeID)
 
 	// Start Raft cluster
 	if err := app.startRaftCluster(); err != nil {
@@ -236,14 +255,14 @@ func (app *Application) Start() error {
 	// Wait for leadership and join cluster if needed
 	go app.handleClusterMembership()
 
-	app.logger.Infof("✅ Node %s started successfully", app.config.NodeID)
+	app.logger.Infof("✅ Multi-directional replication node %s started successfully", app.config.NodeID)
 	app.logAccessURLs()
 
 	return nil
 }
 
 // startRaftCluster initializes the Raft cluster.
-func (app *Application) startRaftCluster() error {
+func (app *MultiApplication) startRaftCluster() error {
 	if app.config.BootstrapCluster {
 		app.logger.Info("🏗️  Bootstrapping new cluster...")
 
@@ -268,7 +287,7 @@ func (app *Application) startRaftCluster() error {
 }
 
 // handleClusterMembership manages cluster joining and leadership monitoring.
-func (app *Application) handleClusterMembership() {
+func (app *MultiApplication) handleClusterMembership() {
 	if app.config.JoinAddr != "" && !app.config.BootstrapCluster {
 		// Wait a bit for bootstrap node to be ready
 		time.Sleep(5 * time.Second)
@@ -277,7 +296,7 @@ func (app *Application) handleClusterMembership() {
 		app.logger.Infof("Requesting to join cluster at %s", app.config.JoinAddr)
 
 		nodeAddr := fmt.Sprintf("127.0.0.1:%d", app.config.Port)
-		leaderAdminAddr := app.deriveAdminAddress(app.config.JoinAddr)
+		leaderAdminAddr := deriveMultiAdminAddress(app.config.JoinAddr)
 
 		if err := app.requestJoinCluster(leaderAdminAddr, app.config.NodeID, nodeAddr); err != nil {
 			app.logger.WithError(err).Warn("Failed to join cluster via admin interface")
@@ -290,26 +309,8 @@ func (app *Application) handleClusterMembership() {
 	go app.monitorLeadership()
 }
 
-// deriveAdminAddress converts a Raft address to an admin address.
-// Assumes admin port is 1000 higher than raft port.
-func (app *Application) deriveAdminAddress(raftAddr string) string {
-	host, portStr, err := net.SplitHostPort(raftAddr)
-	if err != nil {
-		// Fallback to default admin port
-		return fmt.Sprintf("127.0.0.1:%d", app.config.AdminPort)
-	}
-
-	port, err := strconv.Atoi(portStr)
-	if err != nil {
-		return fmt.Sprintf("127.0.0.1:%d", app.config.AdminPort)
-	}
-
-	adminPort := port + 1000 // Default admin port offset
-	return fmt.Sprintf("%s:%d", host, adminPort)
-}
-
 // requestJoinCluster sends an ADD_VOTER command to the leader's admin interface.
-func (app *Application) requestJoinCluster(leaderAdminAddr, nodeID, nodeAddr string) error {
+func (app *MultiApplication) requestJoinCluster(leaderAdminAddr, nodeID, nodeAddr string) error {
 	conn, err := net.DialTimeout("tcp", leaderAdminAddr, 10*time.Second)
 	if err != nil {
 		return fmt.Errorf("connecting to leader admin at %s: %w", leaderAdminAddr, err)
@@ -337,7 +338,7 @@ func (app *Application) requestJoinCluster(leaderAdminAddr, nodeID, nodeAddr str
 }
 
 // monitorLeadership monitors Raft leadership changes and adjusts file watching.
-func (app *Application) monitorLeadership() {
+func (app *MultiApplication) monitorLeadership() {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
@@ -347,7 +348,7 @@ func (app *Application) monitorLeadership() {
 		isLeader := app.raftManager.State() == raft.Leader
 
 		if isLeader && !wasLeader {
-			app.logger.Infof("👑 %s became leader - file watching active", app.config.NodeID)
+			app.logger.Infof("👑 %s became leader - multi-directional file watching active", app.config.NodeID)
 			app.monitor.GetMetrics().IncrementFilesReplicated() // Example metric update
 		} else if !isLeader && wasLeader {
 			app.logger.Infof("👥 %s is now a follower", app.config.NodeID)
@@ -358,7 +359,7 @@ func (app *Application) monitorLeadership() {
 }
 
 // logAccessURLs logs the access URLs for the various interfaces.
-func (app *Application) logAccessURLs() {
+func (app *MultiApplication) logAccessURLs() {
 	app.logger.Info("🌐 Access URLs:")
 	app.logger.Infof("   Admin Interface: http://localhost:%d", app.config.AdminPort)
 	app.logger.Infof("   Monitoring API:  http://localhost:%d", app.config.MonitorPort)
@@ -369,8 +370,8 @@ func (app *Application) logAccessURLs() {
 }
 
 // Stop gracefully shuts down all components.
-func (app *Application) Stop() error {
-	app.logger.Info("🛑 Shutting down Pickbox node...")
+func (app *MultiApplication) Stop() error {
+	app.logger.Info("🛑 Shutting down multi-directional replication node...")
 
 	// Stop file watcher
 	if err := app.fileWatcher.Stop(); err != nil {
@@ -382,91 +383,69 @@ func (app *Application) Stop() error {
 		app.logger.WithError(err).Warn("Error stopping Raft manager")
 	}
 
-	app.logger.Info("✅ Shutdown completed")
+	app.logger.Info("✅ Multi-directional replication shutdown completed")
 	return nil
 }
 
-// parseFlags parses command line flags and returns configuration.
-func parseFlags() AppConfig {
-	var cfg AppConfig
-
-	flag.StringVar(&cfg.NodeID, "node", "node1", "Node ID")
-	flag.IntVar(&cfg.Port, "port", 8001, "Raft port")
-	flag.IntVar(&cfg.AdminPort, "admin-port", 9001, "Admin server port")
-	flag.IntVar(&cfg.MonitorPort, "monitor-port", 6001, "Monitoring server port")
-	flag.IntVar(&cfg.DashboardPort, "dashboard-port", 8080, "Dashboard server port")
-	flag.StringVar(&cfg.JoinAddr, "join", "", "Address of node to join")
-	flag.StringVar(&cfg.DataDir, "data-dir", "", "Data directory (default: data/<node-id>)")
-	flag.StringVar(&cfg.LogLevel, "log-level", "info", "Log level (debug, info, warn, error)")
-	flag.BoolVar(&cfg.BootstrapCluster, "bootstrap", false, "Bootstrap new cluster")
-
-	flag.Parse()
-
-	// Set default data directory if not provided
-	if cfg.DataDir == "" {
-		cfg.DataDir = filepath.Join("data", cfg.NodeID)
+// deriveMultiAdminAddress converts a Raft address to an admin address.
+// Assumes admin port is 1000 higher than raft port.
+func deriveMultiAdminAddress(raftAddr string) string {
+	host, portStr, err := net.SplitHostPort(raftAddr)
+	if err != nil {
+		// Fallback to localhost:9001 if parsing fails
+		return "127.0.0.1:9001"
 	}
 
-	// Only bootstrap if explicitly requested
-	// This prevents multiple nodes from trying to bootstrap simultaneously
-	// The cluster manager should explicitly set -bootstrap for the first node
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		return "127.0.0.1:9001"
+	}
 
-	return cfg
+	adminPort := port + 1000 // Default admin port offset
+	return fmt.Sprintf("%s:%d", host, adminPort)
 }
 
-// setupSignalHandling sets up graceful shutdown on SIGINT/SIGTERM.
-func setupSignalHandling(app *Application) {
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-
-	go func() {
-		<-c
-		app.logger.Info("🔔 Received shutdown signal")
-		if err := app.Stop(); err != nil {
-			app.logger.WithError(err).Error("Error during shutdown")
-			os.Exit(1)
-		}
-		os.Exit(0)
-	}()
-}
-
-func main() {
-	// Parse configuration
-	config := parseFlags()
+// runMultiReplication runs the multi-directional replication with the given parameters.
+func runMultiReplication(nodeID string, port int, join string, dataDir string, logger *logrus.Logger) error {
+	// Create configuration
+	cfg := MultiConfig{
+		NodeID:           nodeID,
+		Port:             port,
+		AdminPort:        port + 1000,
+		MonitorPort:      port + 2000,
+		DashboardPort:    port + 3000,
+		JoinAddr:         join,
+		DataDir:          dataDir,
+		LogLevel:         "info",
+		BootstrapCluster: join == "", // Bootstrap if not joining
+	}
 
 	// Create application
-	app, err := NewApplication(config)
+	app, err := NewMultiApplication(cfg)
 	if err != nil {
-		log.Fatalf("Failed to create application: %v", err)
+		return fmt.Errorf("creating multi-directional replication application: %w", err)
 	}
-
-	// Setup signal handling
-	setupSignalHandling(app)
 
 	// Start application
 	if err := app.Start(); err != nil {
-		log.Fatalf("Failed to start application: %v", err)
+		return fmt.Errorf("starting multi-directional replication application: %w", err)
 	}
 
-	// Create a welcome file for testing (only for bootstrap node)
-	if config.BootstrapCluster {
+	// Create welcome file for bootstrap node
+	if cfg.BootstrapCluster {
 		go func() {
 			time.Sleep(10 * time.Second) // Wait for cluster to be ready
-			createWelcomeFile(config.DataDir, config.NodeID, app.logger)
+			createMultiWelcomeFile(cfg.DataDir, cfg.NodeID, logger)
 		}()
 	}
 
-	// Keep running
-	app.logger.Info("🟢 Node is running! Try editing files in the data directory.")
-	app.logger.Info("🛑 Press Ctrl+C to stop")
-
-	select {} // Block forever
+	return nil
 }
 
-// createWelcomeFile creates a test file for demonstration.
-func createWelcomeFile(dataDir, nodeID string, logger *logrus.Logger) {
+// createMultiWelcomeFile creates a test file for demonstration.
+func createMultiWelcomeFile(dataDir, nodeID string, logger *logrus.Logger) {
 	welcomeFile := filepath.Join(dataDir, "welcome.txt")
-	welcomeContent := fmt.Sprintf(`Welcome to Pickbox Distributed Storage!
+	welcomeContent := fmt.Sprintf(`Welcome to Pickbox Multi-Directional Distributed Storage!
 
 This file was created by %s at %s
 
@@ -485,7 +464,7 @@ Happy distributed computing! 🎉
 `, nodeID, time.Now().Format(time.RFC3339))
 
 	if err := os.WriteFile(welcomeFile, []byte(welcomeContent), 0644); err == nil {
-		logger.Info("📝 Created welcome.txt - try editing it to see replication in action!")
+		logger.Info("📝 Created welcome.txt - try editing it to see multi-directional replication in action!")
 	} else {
 		logger.WithError(err).Warn("Failed to create welcome file")
 	}

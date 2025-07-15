@@ -11,7 +11,7 @@ DEFAULT_BASE_PORT=8001
 DEFAULT_ADMIN_BASE_PORT=9001
 DEFAULT_HOST="127.0.0.1"
 DEFAULT_DATA_DIR="data"
-DEFAULT_BINARY="cmd/multi_replication/main.go"
+DEFAULT_BINARY="./bin/pickbox"
 
 # Colors for output
 RED='\033[0;31m'
