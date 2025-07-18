@@ -9,12 +9,15 @@ help: ## Show this help message
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-15s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 # Build targets
-.PHONY: build clean install
-build: ## Build the main pickbox CLI binary
-	go build -v -o bin/pickbox ./cmd/pickbox
+.PHONY: build build-all clean
+build: ## Build the multi-replication binary
+	go build -v -o bin/multi_replication ./cmd/multi_replication
 
-install: build ## Install pickbox CLI to $GOPATH/bin
-	cp bin/pickbox $(GOPATH)/bin/pickbox
+build-all: ## Build all binaries
+	mkdir -p bin
+	go build -v -o bin/replication ./cmd/replication
+	go build -v -o bin/live_replication ./cmd/live_replication
+	go build -v -o bin/multi_replication ./cmd/multi_replication
 
 clean: ## Clean build artifacts and test data
 	rm -rf bin/
@@ -22,7 +25,7 @@ clean: ## Clean build artifacts and test data
 	rm -rf /tmp/pickbox-*
 	rm -rf /tmp/test-*
 	rm -f coverage.out coverage.html
-	pkill -f pickbox || true
+	pkill -f multi_replication || true
 
 # Development setup
 .PHONY: setup install-tools install-pre-commit
@@ -113,52 +116,19 @@ test-coverage: ## Run tests with coverage
 	go tool cover -func=coverage.out
 
 test-bench: ## Run benchmark tests
-	go test -bench=. -benchmem ./pkg/storage ./cmd/pickbox
+	go test -bench=. -benchmem ./pkg/storage ./cmd/multi_replication
 
-# CLI Demo and scripts
-.PHONY: demo demo-cli demo-3-nodes demo-multi demo-cleanup
-demo: demo-cli ## Run CLI demo (default)
+# Demo and scripts
+.PHONY: demo demo-multi demo-live demo-basic
+demo: demo-multi ## Run multi-replication demo (default)
 
-demo-cli: build ## Run 3-node cluster demo using CLI
-	./bin/pickbox script demo-3-nodes
-
-demo-3-nodes: build ## Run 3-node cluster demo
-	./bin/pickbox script demo-3-nodes
-
-demo-multi: build ## Run multi-directional replication demo using CLI
-	./bin/pickbox node multi --node-id multi-demo --port 8010
-
-demo-cleanup: ## Clean up demo data
-	./bin/pickbox script cleanup || true
-
-# CLI commands examples
-.PHONY: cli-help cli-start-node cli-start-cluster cli-join-cluster cli-status
-cli-help: build ## Show CLI help
-	./bin/pickbox --help
-
-cli-start-node: build ## Start a single node (bootstrap)
-	./bin/pickbox node start --node-id node1 --port 8001 --bootstrap
-
-cli-start-cluster: build ## Start a 3-node cluster
-	@echo "Starting 3-node cluster..."
-	./bin/pickbox node start --node-id node1 --port 8001 --bootstrap &
-	sleep 3
-	./bin/pickbox node start --node-id node2 --port 8002 --join 127.0.0.1:8001 &
-	./bin/pickbox node start --node-id node3 --port 8003 --join 127.0.0.1:8001 &
-	@echo "Cluster started. Use 'make demo-cleanup' to stop."
-
-cli-join-cluster: build ## Join a node to existing cluster
-	./bin/pickbox cluster join --leader 127.0.0.1:8001 --node-id node4 --node-addr 127.0.0.1:8004
-
-cli-status: build ## Check cluster status
-	./bin/pickbox cluster status --addr 127.0.0.1:9001
-
-# Legacy demos (for backward compatibility)
-.PHONY: demo-legacy demo-basic
-demo-legacy: clean ## Run legacy multi-directional replication demo
+demo-multi: clean ## Run multi-directional replication demo
 	./scripts/run_multi_replication.sh
 
-demo-basic: clean ## Run basic replication demo (legacy)
+demo-live: clean ## Run live replication demo
+	./scripts/run_live_replication.sh
+
+demo-basic: clean ## Run basic replication demo
 	./scripts/run_replication.sh
 
 # Verification and CI simulation
@@ -169,7 +139,7 @@ ci: ## Simulate CI pipeline locally
 	$(MAKE) lint
 	$(MAKE) security
 	$(MAKE) test-coverage
-	$(MAKE) build
+	$(MAKE) build-all
 	@echo "✅ CI simulation completed successfully!"
 
 pre-commit: ## Run pre-commit hooks manually
@@ -186,7 +156,7 @@ verify-all: ## Run comprehensive verification (lint + test + security)
 .PHONY: docs
 docs: ## Generate and view documentation
 	godoc -http=:6060
-	@echo "Documentation available at http://localhost:6060/pkg/github.com/addityasingh/pickbox/"
+	@echo "Documentation available at http://localhost:6060/pkg/github.com/aditya/pickbox/"
 
 # Git helpers
 .PHONY: git-hooks

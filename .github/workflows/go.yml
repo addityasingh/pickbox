@@ -109,8 +109,10 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y netcat-openbsd curl
         
-        # Build pickbox binary
-        go build -o ./bin/pickbox ./cmd/pickbox
+        # Build test binaries
+        cd cmd/multi_replication
+        go build -o ../../bin/multi_replication .
+        cd ../..
         
         # Make scripts executable
         chmod +x scripts/*.sh
@@ -166,7 +168,7 @@ jobs:
 
     - name: Run Package Benchmarks
       run: |
-        go test -bench=. -benchmem -run=^$ ./pkg/storage ./cmd/pickbox > package-bench-results.txt
+        go test -bench=. -benchmem -run=^$ ./pkg/storage ./cmd/multi_replication > package-bench-results.txt
         cat package-bench-results.txt
 
     - name: Upload benchmark results
@@ -209,12 +211,19 @@ jobs:
     - name: Download dependencies
       run: go mod download
 
-    - name: Build pickbox binary
+    - name: Build live_replication binary
       env:
         GOOS: ${{ matrix.goos }}
         GOARCH: ${{ matrix.goarch }}
       run: |
-        go build -v -o bin/pickbox-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.goos == 'windows' && '.exe' || '' }} ./cmd/pickbox
+        go build -v -o bin/live_replication-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.goos == 'windows' && '.exe' || '' }} ./cmd/live_replication
+
+    - name: Build multi_replication binary
+      env:
+        GOOS: ${{ matrix.goos }}
+        GOARCH: ${{ matrix.goarch }}
+      run: |
+        go build -v -o bin/multi_replication-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.goos == 'windows' && '.exe' || '' }} ./cmd/multi_replication
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
@@ -541,11 +550,11 @@ jobs:
           - Comprehensive security scan results available in artifacts
           
           ### Downloads
-          - **Linux AMD64**: `pickbox-linux-amd64`
-          - **Linux ARM64**: `pickbox-linux-arm64`
-          - **macOS AMD64**: `pickbox-darwin-amd64`
-          - **macOS ARM64**: `pickbox-darwin-arm64`
-          - **Windows AMD64**: `pickbox-windows-amd64.exe`
+          - **Linux AMD64**: `multi_replication-linux-amd64`
+          - **Linux ARM64**: `multi_replication-linux-arm64`
+          - **macOS AMD64**: `multi_replication-darwin-amd64`
+          - **macOS ARM64**: `multi_replication-darwin-arm64`
+          - **Windows AMD64**: `multi_replication-windows-amd64.exe`
           
           ### Documentation
           - Coverage Report: `coverage.html`

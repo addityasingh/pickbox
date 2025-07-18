@@ -10,19 +10,19 @@ echo ""
 
 # Start node1 (leader)
 echo "Starting node1 (leader) with multi-directional file watching..."
-./bin/pickbox node multi --node-id node1 --port 8001 --bootstrap &
+go run cmd/multi_replication/main.go -node node1 -port 8001 &
 NODE1_PID=$!
 sleep 4
 
 # Start node2
 echo "Starting node2 with multi-directional file watching..."
-./bin/pickbox node multi --node-id node2 --port 8002 --join 127.0.0.1:8001 &
+go run cmd/multi_replication/main.go -node node2 -port 8002 -join 127.0.0.1:8001 &
 NODE2_PID=$!
 sleep 2
 
 # Start node3
 echo "Starting node3 with multi-directional file watching..."
-./bin/pickbox node multi --node-id node3 --port 8003 --join 127.0.0.1:8001 &
+go run cmd/multi_replication/main.go -node node3 -port 8003 -join 127.0.0.1:8001 &
 NODE3_PID=$!
 sleep 2
 
