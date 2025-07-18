@@ -19,7 +19,7 @@ Pickbox is a distributed storage system implemented in Go that provides file ope
 
 ## Multi-Directional Replication Architecture
 
-The current implementation provides advanced multi-directional file replication where any node can initiate changes that automatically propagate to all other nodes while maintaining strong consistency through Raft consensus.
+The current implementation (Step 3) provides advanced multi-directional file replication where any node can initiate changes that automatically propagate to all other nodes while maintaining strong consistency through Raft consensus.
 
 ```mermaid
 graph TB
@@ -155,43 +155,29 @@ graph TB
 
 ```
 .
-├── cmd/
-│   └── pickbox/                 # Main CLI application
-│       ├── main.go              # Entry point
-│       ├── node.go              # Node management commands
-│       ├── multi_replication.go # Multi-directional replication
-│       ├── cluster.go           # Cluster management
-│       └── script.go            # Script execution
+├── cmd/                          # Application entry points
+│   ├── replication/             # Step 1: Basic Raft replication
+│   └── multi_replication/       # Multi-directional replication
 ├── pkg/
-│   ├── storage/                 # Storage layer
-│   │   ├── manager.go           # Storage manager implementation
-│   │   ├── raft_manager.go      # Raft consensus implementation
-│   │   └── *_test.go            # Tests
-│   ├── replication/             # Replication logic
-│   │   ├── fsm.go               # Finite state machine
-│   │   └── fsm_test.go          # Tests
-│   ├── watcher/                 # File watching
-│   │   ├── file_watcher.go      # File system monitoring
-│   │   ├── state_manager.go     # State management
-│   │   └── *_test.go            # Tests
-│   ├── monitoring/              # Monitoring and metrics
-│   │   ├── metrics.go           # Metrics collection
-│   │   ├── dashboard.go         # Dashboard UI
-│   │   └── *_test.go            # Tests
-│   └── admin/                   # Admin interface
-│       ├── server.go            # Admin server
-│       └── server_test.go       # Tests
-├── test/                        # Integration tests
-│   ├── integration_test.go      # End-to-end tests
-│   ├── n_node_test.go           # N-node cluster tests
-│   └── *_test.go                # Other test files
+│   └── storage/
+│       ├── manager.go           # Storage manager implementation
+│       ├── raft_manager.go      # Raft consensus implementation
+│       └── raft_test.go         # Raft tests
 ├── scripts/                     # Automation scripts
-│   ├── cluster_manager.sh       # Cluster management
-│   ├── demo_n_nodes.sh          # N-node demos
-│   └── tests/                   # Test scripts
-├── examples/                    # Example configurations
-│   └── cluster-configs/         # Cluster configuration files
+│   ├── tests/                   # Test scripts
+│   │   ├── test_replication.sh
+│   │   └── test_multi_replication.sh
+│   ├── run_replication.sh       # Demo scripts
+│   ├── run_multi_replication.sh
+│   ├── cleanup_replication.sh   # Utility scripts
+│   └── add_nodes.go
 ├── .cursor/debug/               # Architecture documentation
+│   ├── step1_basic_raft_replication.md
+
+│   ├── step3_multi_directional_replication.md
+│   └── architecture_evolution_overview.md
+├── go.mod                       # Go module definition
+├── go.sum                       # Go module checksums
 └── README.md                    # This file
 ```
 
@@ -209,32 +195,12 @@ graph TB
    cd pickbox
    ```
 
-2. **Build the application**:
-   ```bash
-   make build
-   # or
-   go build -o bin/pickbox ./cmd/pickbox
-   ```
-
-3. **Setup development environment** (optional but recommended):
+2. **Setup development environment** (optional but recommended):
    ```bash
    make setup  # Install tools and pre-commit hooks
    ```
 
-4. **Start a cluster using the CLI**:
-   ```bash
-   # Start 3-node cluster using CLI
-   ./bin/pickbox node start --node-id node1 --port 8001 --bootstrap &
-   ./bin/pickbox node start --node-id node2 --port 8002 --join 127.0.0.1:8001 &
-   ./bin/pickbox node start --node-id node3 --port 8003 --join 127.0.0.1:8001 &
-   
-   # Or use multi-directional replication mode
-   ./bin/pickbox node multi --node-id node1 --port 8001 --bootstrap &
-   ./bin/pickbox node multi --node-id node2 --port 8002 --join 127.0.0.1:8001 &
-   ./bin/pickbox node multi --node-id node3 --port 8003 --join 127.0.0.1:8001 &
-   ```
-
-5. **Alternative: Use cluster management scripts**:
+3. **Start a cluster (any size)**:
    ```bash
    # 3-node cluster (backward compatible)
    ./scripts/cluster_manager.sh start -n 3
@@ -249,7 +215,7 @@ graph TB
    ./scripts/cluster_manager.sh start -c examples/cluster-configs/5-node-cluster.conf
    ```
 
-6. **Test the system**:
+4. **Test the system**:
    ```bash
    # Create files on any node - they replicate everywhere!
    echo "Hello from node1!" > data/node1/test1.txt
@@ -260,7 +226,7 @@ graph TB
    ls data/node*/
    ```
 
-7. **Run comprehensive tests**:
+5. **Run comprehensive tests**:
    ```bash
    # Test specific cluster size
    ./scripts/tests/test_n_replication.sh -n 5
@@ -274,38 +240,6 @@ graph TB
 - **node2**: Raft=8002, Admin=9002, Monitor=6002  
 - **nodeN**: Raft=800N, Admin=900N, Monitor=600N
 - **Dashboard**: 8080 (shared across all nodes)
-
-## CLI Commands
-
-The `pickbox` CLI provides comprehensive cluster management:
-
-### Node Management
-```bash
-# Start a node
-./bin/pickbox node start --node-id node1 --port 8001 --bootstrap
-
-# Start multi-directional replication
-./bin/pickbox node multi --node-id node1 --port 8001 --bootstrap
-
-# Join existing cluster
-./bin/pickbox node start --node-id node2 --port 8002 --join 127.0.0.1:8001
-```
-
-### Cluster Management
-```bash
-# Check cluster status
-./bin/pickbox cluster status --addr 127.0.0.1:9001
-
-# Join cluster
-./bin/pickbox cluster join --leader 127.0.0.1:8001 --node-id node4 --node-addr 127.0.0.1:8004
-```
-
-### Script Execution
-```bash
-# Run predefined scripts
-./bin/pickbox script demo-3-nodes
-./bin/pickbox script cleanup
-```
 
 ## Cluster Management (N-Node Support)
 
@@ -347,8 +281,7 @@ MONITOR_BASE_PORT=6001
 DASHBOARD_PORT=8080
 HOST=127.0.0.1
 DATA_DIR=data
-BINARY=./bin/pickbox
-BINARY_ARGS="node multi"
+BINARY=cmd/multi_replication/main.go
 ```
 
 ### Advanced Usage
@@ -375,7 +308,6 @@ All existing 3-node scripts remain functional:
 ```bash
 # Legacy scripts (still work)
 ./scripts/run_multi_replication.sh                        # 3-node cluster
-./scripts/run_live_replication.sh                         # Live replication demo
 ./scripts/tests/test_multi_replication.sh                 # 3-node tests
 ```
 
@@ -423,17 +355,12 @@ find data/ -name "*.txt" -exec echo "=== {} ===" \; -exec cat {} \;
 echo "STATUS" | nc localhost 9001  # Node 1 admin port
 echo "STATUS" | nc localhost 9002  # Node 2 admin port  
 echo "STATUS" | nc localhost 9003  # Node 3 admin port
-
-# Or use the CLI
-./bin/pickbox cluster status --addr 127.0.0.1:9001
 ```
 
 **Cleanup**:
 ```bash
 # Clean up all processes and data
 ./scripts/cleanup_replication.sh
-# or
-./bin/pickbox script cleanup
 ```
 
 ## Implementation Details
@@ -465,7 +392,7 @@ The system uses structured logging via `logrus` for better observability. Logs i
 
 Pickbox includes a comprehensive test suite covering unit tests, integration tests, and benchmarks. The system provides:
 
-- **Unit Tests**: Storage package, Raft manager, and pickbox CLI components *(active)*
+- **Unit Tests**: Storage package, Raft manager, and multi-replication components *(active)*
 - **Integration Tests**: End-to-end 3-node cluster testing *(currently disabled for CI/CD stability)*
 - **Benchmark Tests**: Performance testing for critical operations *(active)*
 - **Test Scripts**: Automated testing for all replication modes *(manual execution only)*
@@ -480,13 +407,12 @@ Pickbox includes a comprehensive test suite covering unit tests, integration tes
 cd test && go test -v .
 
 # Run unit tests
-go test -v ./pkg/storage ./cmd/pickbox
+go test -v ./pkg/storage ./cmd/multi_replication
 ```
 
 ### Test Scripts
 
 - `scripts/tests/test_replication.sh` - Basic Raft replication tests
-- `scripts/tests/test_live_replication.sh` - Live file watching tests  
 - `scripts/tests/test_multi_replication.sh` - Multi-directional replication tests
 
 **📖 For comprehensive testing documentation, see [`test/README.md`](test/README.md)**
@@ -558,7 +484,7 @@ Pickbox uses GitHub Actions for continuous integration and deployment:
 
 ### Artifacts Published
 - **Coverage Reports**: HTML and raw coverage data
-- **Binaries**: Cross-platform executables for the pickbox CLI
+- **Binaries**: Cross-platform executables for all three modes
 - **Security Reports**: SARIF format security scan results
 - **Integration Logs**: Debug logs from failed integration tests
 
@@ -566,3 +492,48 @@ Pickbox uses GitHub Actions for continuous integration and deployment:
 - **Build Status**: [![Pickbox CI/CD](https://github.com/addityasingh/pickbox/actions/workflows/go.yml/badge.svg)](https://github.com/addityasingh/pickbox/actions/workflows/go.yml)
 - **Code Coverage**: [![codecov](https://codecov.io/gh/addityasingh/pickbox/branch/main/graph/badge.svg)](https://codecov.io/gh/addityasingh/pickbox)
 - **Code Quality**: [![Go Report Card](https://goreportcard.com/badge/github.com/addityasingh/pickbox)](https://goreportcard.com/report/github.com/addityasingh/pickbox)
+
+## Scripts Organization
+
+```
+scripts/
+├── tests/                    # Test scripts
+│   ├── README.md
+│   ├── test_replication.sh
+│   └── test_multi_replication.sh
+├── run_replication.sh        # Demo scripts
+├── run_multi_replication.sh
+├── cleanup_replication.sh    # Utility scripts
+└── add_nodes.go
+```
+
+## Architecture Documentation
+
+Comprehensive architecture diagrams and documentation are available in `.cursor/debug/`:
+
+- **Step 1**: `step1_basic_raft_replication.md` - Basic Raft consensus replication
+  
+- **Step 3**: `step3_multi_directional_replication.md` - Multi-directional replication
+- **Overview**: `architecture_evolution_overview.md` - Complete evolution analysis
+
+Each document includes detailed Mermaid diagrams showing:
+- Node architecture and communication patterns
+- Data flow and command processing
+- Component relationships and dependencies
+- Evolution from basic consensus to advanced multi-directional replication
+
+## Improvements 
+- [ ] Refactor code to be more readable
+- [x] Add tests for golang files
+- [x] Refactor test bash scripts from scripts folder
+- [x] Generate architecture diagram for each of the 3 versions (replication, multi_replication)
+- [x] Set up comprehensive CI/CD pipeline with GitHub Actions
+- [x] Add comprehensive linting with pre-commit hooks and unused field detection
+- [ ] Stabilize integration tests for reliable CI/CD execution (currently all disabled due to timing/resource issues)
+- [ ] Deploy and create client code for this setup to test end-to-end
+- [x] Make it a generalized solution for N nodes instead of hardcoded 3 nodes
+- [ ] Understand the RaftFSM
+
+## License
+
+MIT License

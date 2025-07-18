@@ -12,7 +12,7 @@ This directory contains comprehensive tests for the Pickbox distributed file sto
 - **Vector Clock Tests**: Test distributed conflict resolution mechanisms
 - **Raft Manager Tests**: Test Raft consensus and FSM operations
 
-#### Multi-Replication Tests (`cmd/pickbox/multi_replication_test.go`)
+#### Multi-Replication Tests (`cmd/multi_replication/main_test.go`)
 - **FSM Tests**: Test file system state machine operations
 - **Command Tests**: Test command serialization/deserialization
 - **Hash Function Tests**: Test content deduplication mechanisms
@@ -54,14 +54,14 @@ Performance testing for critical operations:
 ```bash
 # Unit tests only
 go test -v ./pkg/storage
-go test -v ./cmd/pickbox
+go test -v ./cmd/multi_replication
 
 # Integration tests only
 cd test && go test -v .
 
 # Benchmarks only
 go test -bench=. ./pkg/storage
-go test -bench=. ./cmd/pickbox
+go test -bench=. ./cmd/multi_replication
 ```
 
 ### Coverage Reports
@@ -131,8 +131,8 @@ go tool cover -func=coverage.out
 3. **Build Issues**
    ```bash
    # Rebuild binary
-   cd cmd/pickbox
-   go build -o ../../bin/pickbox .
+   cd cmd/multi_replication
+   go build -o ../../bin/multi_replication .
    ```
 
 ### Verbose Logging
@@ -168,7 +168,7 @@ export PICKBOX_DEBUG=true
 cd pkg/storage && go test -bench=. -benchmem
 
 # Multi-replication benchmarks  
-cd cmd/pickbox && go test -bench=. -benchmem
+cd cmd/multi_replication && go test -bench=. -benchmem
 
 # Custom benchmark runs
 go test -bench=BenchmarkHashContent -count=5 -benchtime=10s

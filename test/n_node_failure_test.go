@@ -74,12 +74,12 @@ func (suite *failureTestSuite) restartNode(t *testing.T, nodeNum int) {
 	joinAddr := "127.0.0.1:8001" // Always join to node1
 
 	cmd := exec.Command(
-		"../bin/pickbox", "node", "multi",
-		"--node-id", nodeID,
-		"--port", fmt.Sprintf("%d", port),
-		"--admin-port", fmt.Sprintf("%d", adminPort),
-		"--data-dir", dataDir,
-		"--join", joinAddr,
+		"go", "run", "../cmd/multi_replication/main.go",
+		"-node", nodeID,
+		"-port", fmt.Sprintf("%d", port),
+		"-admin-port", fmt.Sprintf("%d", adminPort),
+		"-data-dir", dataDir,
+		"-join", joinAddr,
 	)
 
 	// Start in background

@@ -86,7 +86,7 @@ git tag v1.0.0
 git push origin v1.0.0
 
 # 5. Monitor the GitHub Actions workflow
-Go to: https://github.com/addityasingh/pickbox/actions
+# Go to: https://github.com/aditya/pickbox/actions
 ```
 
 ## Release Notes

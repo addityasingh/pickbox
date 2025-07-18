@@ -262,7 +262,6 @@ cleanup() {
     
     # Kill test processes
     pkill -f "multi_replication" 2>/dev/null || true
-    pkill -f "live_replication" 2>/dev/null || true
     pkill -f "go run.*replication" 2>/dev/null || true
     pkill -f "cluster_manager" 2>/dev/null || true
     
@@ -388,10 +387,6 @@ echo "Building required binaries..."
 if [ "$DRY_RUN" = false ]; then
     cd cmd/multi_replication
     go build -o ../../bin/multi_replication . || exit 1
-    cd - > /dev/null
-    
-    cd cmd/live_replication
-    go build -o ../../bin/live_replication . || exit 1
     cd - > /dev/null
     
     echo -e "${GREEN}✅ Binaries built successfully${NC}"

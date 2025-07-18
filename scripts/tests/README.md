@@ -9,10 +9,7 @@ This directory contains automated test scripts for the distributed file storage 
 - **Usage**: `./test_replication.sh`
 - **What it tests**: Runs basic, live, and multi-directional replication tests
 
-### `test_live_replication.sh`
-- **Purpose**: Tests live file watching and replication
-- **Usage**: `./test_live_replication.sh`
-- **What it tests**: File creation, modification, and real-time replication from leader to followers
+# [REMOVED] test_live_replication.sh functionality has been deleted
 
 ### `test_multi_replication.sh`
 - **Purpose**: Tests multi-directional replication capabilities
@@ -33,7 +30,7 @@ cd scripts/tests
 To run individual tests:
 ```bash
 cd scripts/tests
-./test_live_replication.sh
+# [REMOVED] ./test_live_replication.sh
 ./test_multi_replication.sh
 ```
 
