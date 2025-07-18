@@ -211,12 +211,7 @@ jobs:
     - name: Download dependencies
       run: go mod download
 
-    - name: Build live_replication binary
-      env:
-        GOOS: ${{ matrix.goos }}
-        GOARCH: ${{ matrix.goarch }}
-      run: |
-        go build -v -o bin/live_replication-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.goos == 'windows' && '.exe' || '' }} ./cmd/live_replication
+# [REMOVED] live_replication binary build step
 
     - name: Build multi_replication binary
       env:

@@ -184,7 +184,6 @@ done
 ### Existing Scripts Still Work
 All existing 3-node scripts remain functional:
 - `scripts/run_multi_replication.sh` - Still works for 3 nodes
-- `scripts/run_live_replication.sh` - Still works for 3 nodes
 - `scripts/tests/test_multi_replication.sh` - Still tests 3 nodes
 
 ### Migration Path
@@ -219,10 +218,10 @@ go run scripts/add_nodes.go -nodes 2 -start 4    # Add to cluster
 ### Custom Binary Testing
 ```bash
 # Test with different binary
-./scripts/cluster_manager.sh start -n 4 --binary cmd/live_replication/main.go
+# [DELETED] ./scripts/cluster_manager.sh start -n 4 --binary cmd/multi_replication/main.go
 
 # Test with configuration
-echo "BINARY=cmd/live_replication/main.go" >> custom.conf
+echo "# [BINARY DELETED - use cmd/multi_replication/main.go instead]" >> custom.conf
 ./scripts/cluster_manager.sh start -c custom.conf
 ```
 

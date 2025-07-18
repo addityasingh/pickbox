@@ -157,8 +157,7 @@ graph TB
 .
 ├── cmd/                          # Application entry points
 │   ├── replication/             # Step 1: Basic Raft replication
-│   ├── live_replication/        # Step 2: Live file watching
-│   └── multi_replication/       # Step 3: Multi-directional replication
+│   └── multi_replication/       # Multi-directional replication
 ├── pkg/
 │   └── storage/
 │       ├── manager.go           # Storage manager implementation
@@ -167,16 +166,14 @@ graph TB
 ├── scripts/                     # Automation scripts
 │   ├── tests/                   # Test scripts
 │   │   ├── test_replication.sh
-│   │   ├── test_live_replication.sh
 │   │   └── test_multi_replication.sh
 │   ├── run_replication.sh       # Demo scripts
-│   ├── run_live_replication.sh
 │   ├── run_multi_replication.sh
 │   ├── cleanup_replication.sh   # Utility scripts
 │   └── add_nodes.go
 ├── .cursor/debug/               # Architecture documentation
 │   ├── step1_basic_raft_replication.md
-│   ├── step2_live_replication.md
+
 │   ├── step3_multi_directional_replication.md
 │   └── architecture_evolution_overview.md
 ├── go.mod                       # Go module definition
@@ -311,7 +308,6 @@ All existing 3-node scripts remain functional:
 ```bash
 # Legacy scripts (still work)
 ./scripts/run_multi_replication.sh                        # 3-node cluster
-./scripts/run_live_replication.sh                         # Live replication demo
 ./scripts/tests/test_multi_replication.sh                 # 3-node tests
 ```
 
@@ -417,7 +413,6 @@ go test -v ./pkg/storage ./cmd/multi_replication
 ### Test Scripts
 
 - `scripts/tests/test_replication.sh` - Basic Raft replication tests
-- `scripts/tests/test_live_replication.sh` - Live file watching tests  
 - `scripts/tests/test_multi_replication.sh` - Multi-directional replication tests
 
 **📖 For comprehensive testing documentation, see [`test/README.md`](test/README.md)**
@@ -505,10 +500,8 @@ scripts/
 ├── tests/                    # Test scripts
 │   ├── README.md
 │   ├── test_replication.sh
-│   ├── test_live_replication.sh
 │   └── test_multi_replication.sh
 ├── run_replication.sh        # Demo scripts
-├── run_live_replication.sh
 ├── run_multi_replication.sh
 ├── cleanup_replication.sh    # Utility scripts
 └── add_nodes.go
@@ -519,7 +512,7 @@ scripts/
 Comprehensive architecture diagrams and documentation are available in `.cursor/debug/`:
 
 - **Step 1**: `step1_basic_raft_replication.md` - Basic Raft consensus replication
-- **Step 2**: `step2_live_replication.md` - Live file watching and replication  
+  
 - **Step 3**: `step3_multi_directional_replication.md` - Multi-directional replication
 - **Overview**: `architecture_evolution_overview.md` - Complete evolution analysis
 
@@ -533,7 +526,7 @@ Each document includes detailed Mermaid diagrams showing:
 - [ ] Refactor code to be more readable
 - [x] Add tests for golang files
 - [x] Refactor test bash scripts from scripts folder
-- [x] Generate architecture diagram for each of the 3 versions (replication, live_replication, multi_replication)
+- [x] Generate architecture diagram for each of the 3 versions (replication, multi_replication)
 - [x] Set up comprehensive CI/CD pipeline with GitHub Actions
 - [x] Add comprehensive linting with pre-commit hooks and unused field detection
 - [ ] Stabilize integration tests for reliable CI/CD execution (currently all disabled due to timing/resource issues)

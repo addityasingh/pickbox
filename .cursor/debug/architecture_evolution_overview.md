@@ -91,7 +91,7 @@ graph TB
 **Achievement**: Strong consistency with manual operations
 
 ### Phase 2: Automation (Live Replication)
-**Implementation**: `cmd/live_replication/main.go`  
+**Implementation**: [DELETED]  
 **Goal**: Add real-time file monitoring and automatic replication  
 **Achievement**: Leader-initiated live file synchronization
 
@@ -219,7 +219,6 @@ Step 3: + Multi-directional scenarios and deduplication
 
 ### Test Scripts Evolution
 - **`test_replication.sh`**: Basic functionality
-- **`test_live_replication.sh`**: Live monitoring
 - **`test_multi_replication.sh`**: Comprehensive multi-directional testing
 
 ## Deployment Evolution
@@ -238,7 +237,7 @@ go run scripts/add_nodes.go
 ### Automated Deployment (Step 2)
 ```bash
 # Automated cluster with live replication
-./scripts/run_live_replication.sh
+# [SCRIPT DELETED]
 ```
 
 ### Production Deployment (Step 3)

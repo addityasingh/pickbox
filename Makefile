@@ -16,7 +16,7 @@ build: ## Build the multi-replication binary
 build-all: ## Build all binaries
 	mkdir -p bin
 	go build -v -o bin/replication ./cmd/replication
-	go build -v -o bin/live_replication ./cmd/live_replication
+# [REMOVED] live_replication build command
 	go build -v -o bin/multi_replication ./cmd/multi_replication
 
 clean: ## Clean build artifacts and test data
@@ -126,7 +126,7 @@ demo-multi: clean ## Run multi-directional replication demo
 	./scripts/run_multi_replication.sh
 
 demo-live: clean ## Run live replication demo
-	./scripts/run_live_replication.sh
+# [REMOVED] ./scripts/run_live_replication.sh
 
 demo-basic: clean ## Run basic replication demo
 	./scripts/run_replication.sh

@@ -153,7 +153,6 @@ cleanup() {
     
     # Kill any running processes
     pkill -f "multi_replication" 2>/dev/null || true
-    pkill -f "live_replication" 2>/dev/null || true
     pkill -f "go run.*replication" 2>/dev/null || true
     pkill -f "cluster_manager" 2>/dev/null || true
     
@@ -210,17 +209,8 @@ cd cmd/multi_replication
 go build -o ../../bin/multi_replication .
 cd "$PROJECT_ROOT"
 
-cd cmd/live_replication
-go build -o ../../bin/live_replication .
-cd "$PROJECT_ROOT"
-
 if [ ! -f "bin/multi_replication" ]; then
     echo -e "${RED}Failed to build multi_replication binary${NC}"
-    exit 1
-fi
-
-if [ ! -f "bin/live_replication" ]; then
-    echo -e "${RED}Failed to build live_replication binary${NC}"
     exit 1
 fi
 

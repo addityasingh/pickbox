@@ -11,7 +11,7 @@ echo "------------------------------------"
 echo ""
 echo "2. Testing live replication..."
 echo "------------------------------"
-./test_live_replication.sh
+
 
 echo ""
 echo "3. Testing multi-directional replication..."

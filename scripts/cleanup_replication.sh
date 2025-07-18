@@ -4,8 +4,6 @@ echo "🧹 Performing thorough cleanup..."
 
 # Kill all replication-related processes
 echo "Killing replication processes..."
-pkill -f "live_replication" 2>/dev/null || true
-pkill -f "cmd/live_replication" 2>/dev/null || true
 pkill -f "raft_demo" 2>/dev/null || true
 pkill -f "cmd/raft_demo" 2>/dev/null || true
 

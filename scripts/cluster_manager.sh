@@ -148,8 +148,6 @@ cleanup_cluster() {
     local process_patterns=(
         "multi_replication"
         "cmd/multi_replication"
-        "live_replication"
-        "cmd/live_replication"
     )
     
     for pattern in "${process_patterns[@]}"; do
