@@ -89,7 +89,7 @@ func NewApplication(cfg AppConfig) (*Application, error) {
 	})
 
 	// Create data directory
-	if err := os.MkdirAll(cfg.DataDir, 0755); err != nil {
+	if err := os.MkdirAll(cfg.DataDir, 0750); err != nil {
 		return nil, fmt.Errorf("creating data directory: %w", err)
 	}
 
